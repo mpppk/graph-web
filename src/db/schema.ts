@@ -1,10 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-	real,
-	sqliteTable,
-	text,
-	uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const graphs = sqliteTable("graphs", {
 	id: text("id").primaryKey(),
