@@ -8,12 +8,12 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "preview": "npm run build && vite preview",
+    "preview": "bun run build && vite preview",
     "test": "vitest run",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "bun run build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -65,11 +65,11 @@
   "overrides": {
     "kysely": "0.28.17"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss",
-      "better-sqlite3"
-    ]
-  }
+  "trustedDependencies": [
+    "better-sqlite3",
+    "esbuild",
+    "lightningcss",
+    "sharp",
+    "workerd"
+  ]
 }
