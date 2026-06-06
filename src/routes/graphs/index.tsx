@@ -1,6 +1,6 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { authClient } from "#/lib/auth-client";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraphList } from "#/components/graph/GraphList";
+import { authClient } from "#/lib/auth-client";
 import { listGraphs } from "#/lib/graph-server-fns";
 
 export const Route = createFileRoute("/graphs/")({

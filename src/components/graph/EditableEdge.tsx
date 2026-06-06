@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import {
 	BaseEdge,
 	EdgeLabelRenderer,
@@ -5,7 +6,6 @@ import {
 	getBezierPath,
 	useReactFlow,
 } from "@xyflow/react";
-import { useMutation } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { updateEdgeLabel } from "#/lib/graph-server-fns";
 
@@ -25,8 +25,7 @@ export function EditableEdge({
 	const { updateEdgeData } = useReactFlow();
 
 	const mutation = useMutation({
-		mutationFn: (label: string) =>
-			updateEdgeLabel({ data: { id, label } }),
+		mutationFn: (label: string) => updateEdgeLabel({ data: { id, label } }),
 		onSuccess: (edge) => {
 			if (edge) updateEdgeData(id, { label: edge.label });
 		},

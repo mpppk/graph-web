@@ -14,9 +14,7 @@ export const listGraphs = createServerFn({ method: "GET" }).handler(
 );
 
 export const createGraph = createServerFn({ method: "POST" })
-	.inputValidator(
-		(data: { name: string; description?: string }) => data,
-	)
+	.inputValidator((data: { name: string; description?: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		const id = crypto.randomUUID();
@@ -26,10 +24,7 @@ export const createGraph = createServerFn({ method: "POST" })
 			name: data.name,
 			description: data.description ?? "",
 		});
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(eq(graphs.id, id));
+		const [graph] = await db.select().from(graphs).where(eq(graphs.id, id));
 		return graph;
 	});
 
@@ -87,12 +82,7 @@ export const listNodes = createServerFn({ method: "GET" })
 
 export const createNode = createServerFn({ method: "POST" })
 	.inputValidator(
-		(data: {
-			graphId: string;
-			label: string;
-			x?: number;
-			y?: number;
-		}) => data,
+		(data: { graphId: string; label: string; x?: number; y?: number }) => data,
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
@@ -130,17 +120,12 @@ export const updateNodeLabel = createServerFn({ method: "POST" })
 			.update(nodes)
 			.set({ label: data.label })
 			.where(eq(nodes.id, data.id));
-		const [node] = await db
-			.select()
-			.from(nodes)
-			.where(eq(nodes.id, data.id));
+		const [node] = await db.select().from(nodes).where(eq(nodes.id, data.id));
 		return node;
 	});
 
 export const updateNodeType = createServerFn({ method: "POST" })
-	.inputValidator(
-		(data: { id: string; nodeType: string | null }) => data,
-	)
+	.inputValidator((data: { id: string; nodeType: string | null }) => data)
 	.handler(async ({ data }) => {
 		await db
 			.update(nodes)
@@ -193,10 +178,7 @@ export const updateEdgeLabel = createServerFn({ method: "POST" })
 			.update(edges)
 			.set({ label: data.label })
 			.where(eq(edges.id, data.id));
-		const [edge] = await db
-			.select()
-			.from(edges)
-			.where(eq(edges.id, data.id));
+		const [edge] = await db.select().from(edges).where(eq(edges.id, data.id));
 		return edge;
 	});
 

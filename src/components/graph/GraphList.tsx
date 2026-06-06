@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
+import type { graphs } from "#/db/schema";
 import {
 	createGraph,
 	deleteGraph,
 	listGraphs,
 	updateGraphName,
 } from "#/lib/graph-server-fns";
-import type { graphs } from "#/db/schema";
 
 type Graph = typeof graphs.$inferSelect;
 

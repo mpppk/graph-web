@@ -1,31 +1,21 @@
 import "@xyflow/react/dist/style.css";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
 	Background,
+	type Connection,
 	Controls,
 	MiniMap,
-	type Connection,
+	type OnConnect,
+	ReactFlow,
+	type ReactFlowInstance,
 	type Edge as RFEdge,
 	type Node as RFNode,
-	type OnConnect,
-	type ReactFlowInstance,
-	ReactFlow,
 	useEdgesState,
 	useNodesState,
 } from "@xyflow/react";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EditableEdge } from "./EditableEdge";
-import { EditableNode } from "./EditableNode";
-import { NodeSidePanel } from "./NodeSidePanel";
-import { EdgeSidePanel } from "./EdgeSidePanel";
-import {
-	DEFAULT_LAYOUT_ALGORITHM,
-	LAYOUT_ALGORITHMS,
-	type LayoutAlgorithm,
-} from "./constants";
-import { computeElkLayout } from "./elk-layout";
-import { generateMermaidDiagram } from "./mermaid-export";
+import type { graphs } from "#/db/schema";
 import {
 	createEdge,
 	createNode,
@@ -35,7 +25,17 @@ import {
 	updateNodePosition,
 	updateNodeType,
 } from "#/lib/graph-server-fns";
-import type { graphs } from "#/db/schema";
+import {
+	DEFAULT_LAYOUT_ALGORITHM,
+	LAYOUT_ALGORITHMS,
+	type LayoutAlgorithm,
+} from "./constants";
+import { EdgeSidePanel } from "./EdgeSidePanel";
+import { EditableEdge } from "./EditableEdge";
+import { EditableNode } from "./EditableNode";
+import { computeElkLayout } from "./elk-layout";
+import { generateMermaidDiagram } from "./mermaid-export";
+import { NodeSidePanel } from "./NodeSidePanel";
 
 type Graph = typeof graphs.$inferSelect;
 
@@ -56,8 +56,9 @@ function GraphCanvasInner({
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-	const [selectedAlgo, setSelectedAlgo] =
-		useState<LayoutAlgorithm>(DEFAULT_LAYOUT_ALGORITHM);
+	const [selectedAlgo, setSelectedAlgo] = useState<LayoutAlgorithm>(
+		DEFAULT_LAYOUT_ALGORITHM,
+	);
 	const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
 	const layoutMenuRef = useRef<HTMLDivElement | null>(null);
 	const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -114,7 +115,10 @@ function GraphCanvasInner({
 		mutationFn: ({
 			sourceNodeId,
 			targetNodeId,
-		}: { sourceNodeId: string; targetNodeId: string }) =>
+		}: {
+			sourceNodeId: string;
+			targetNodeId: string;
+		}) =>
 			createEdge({ data: { graphId: graph.id, sourceNodeId, targetNodeId } }),
 		onSuccess: (newEdge) => {
 			if (!newEdge) return;

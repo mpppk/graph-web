@@ -16,9 +16,7 @@ export function generateMermaidDiagram(
 
 	const nodeLines = nodes.map((n) => {
 		const mid = idMap.get(n.id) ?? n.id;
-		const label = escapeMermaidLabel(
-			(n.data.label as string) || "(untitled)",
-		);
+		const label = escapeMermaidLabel((n.data.label as string) || "(untitled)");
 		return `  ${mid}["${label}"]`;
 	});
 

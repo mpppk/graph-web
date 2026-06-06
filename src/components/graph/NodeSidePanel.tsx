@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Node as RFNode } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PREDEFINED_NODE_TYPES } from "./constants";
 import {
 	deleteNodeMetadata,
 	listNodeMetadata,
 	upsertNodeMetadata,
 } from "#/lib/graph-server-fns";
+import { PREDEFINED_NODE_TYPES } from "./constants";
 
 export function NodeSidePanel({
 	nodeId,
@@ -24,8 +24,9 @@ export function NodeSidePanel({
 	const qc = useQueryClient();
 	const node = nodes.find((n) => n.id === nodeId);
 	const label = node ? (node.data.label as string) : "";
-	const currentNodeType =
-		node ? (node.data.nodeType as string | null | undefined) ?? "" : "";
+	const currentNodeType = node
+		? ((node.data.nodeType as string | null | undefined) ?? "")
+		: "";
 
 	const { data: metadata = [] } = useQuery({
 		queryKey: ["metadata", nodeId],

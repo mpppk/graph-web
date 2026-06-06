@@ -1,5 +1,5 @@
-import ELK from "elkjs/lib/elk.bundled.js";
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
+import ELK from "elkjs/lib/elk.bundled.js";
 
 const elk = new ELK();
 

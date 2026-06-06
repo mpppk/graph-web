@@ -22,9 +22,7 @@ export const graphs = sqliteTable("graphs", {
 	userId: text("user_id").notNull(),
 	name: text("name").notNull(),
 	description: text("description").notNull().default(""),
-	createdAt: text("created_at")
-		.notNull()
-		.default(sql`(datetime('now'))`),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const nodes = sqliteTable("nodes", {
@@ -36,9 +34,7 @@ export const nodes = sqliteTable("nodes", {
 	x: real("x").notNull().default(0),
 	y: real("y").notNull().default(0),
 	nodeType: text("node_type"),
-	createdAt: text("created_at")
-		.notNull()
-		.default(sql`(datetime('now'))`),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const edges = sqliteTable("edges", {
@@ -53,9 +49,7 @@ export const edges = sqliteTable("edges", {
 		.notNull()
 		.references(() => nodes.id, { onDelete: "cascade" }),
 	label: text("label").notNull().default(""),
-	createdAt: text("created_at")
-		.notNull()
-		.default(sql`(datetime('now'))`),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const nodeMetadata = sqliteTable(
@@ -67,9 +61,7 @@ export const nodeMetadata = sqliteTable(
 			.references(() => nodes.id, { onDelete: "cascade" }),
 		key: text("key").notNull(),
 		value: text("value").notNull().default(""),
-		createdAt: text("created_at")
-			.notNull()
-			.default(sql`(datetime('now'))`),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(t) => [uniqueIndex("node_metadata_node_id_key_unique").on(t.nodeId, t.key)],
 );

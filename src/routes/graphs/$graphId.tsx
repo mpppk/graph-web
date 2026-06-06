@@ -1,15 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
-import {
-	getGraph,
-	listEdges,
-	listNodes,
-} from "#/lib/graph-server-fns";
+import { lazy, Suspense } from "react";
+import { getGraph, listEdges, listNodes } from "#/lib/graph-server-fns";
 
-const GraphCanvas = lazy(
-	() => import("#/components/graph/GraphCanvas"),
-);
+const GraphCanvas = lazy(() => import("#/components/graph/GraphCanvas"));
 
 export const Route = createFileRoute("/graphs/$graphId")({
 	component: GraphPage,

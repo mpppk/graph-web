@@ -1,8 +1,8 @@
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import { useMutation } from "@tanstack/react-query";
+import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NODE_TYPE_COLORS } from "./constants";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
+import { NODE_TYPE_COLORS } from "./constants";
 
 export function EditableNode({ id, data, selected }: NodeProps) {
 	const [editing, setEditing] = useState(false);
@@ -10,12 +10,13 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateNodeData } = useReactFlow();
 	const nodeType = data.nodeType as string | null | undefined;
-	const bgColor = nodeType ? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff") : "#ffffff";
+	const bgColor = nodeType
+		? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff")
+		: "#ffffff";
 	const hasTypeColor = !!nodeType && !!NODE_TYPE_COLORS[nodeType];
 
 	const mutation = useMutation({
-		mutationFn: (label: string) =>
-			updateNodeLabel({ data: { id, label } }),
+		mutationFn: (label: string) => updateNodeLabel({ data: { id, label } }),
 		onSuccess: (node) => {
 			if (node) updateNodeData(id, { label: node.label });
 		},
