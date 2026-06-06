@@ -1,21 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-	integer,
-	real,
-	sqliteTable,
-	text,
-	uniqueIndex,
-} from "drizzle-orm/sqlite-core";
-
-export const todos = sqliteTable("todos", {
-	id: integer({ mode: "number" }).primaryKey({
-		autoIncrement: true,
-	}),
-	title: text().notNull(),
-	createdAt: integer("created_at", { mode: "timestamp" }).default(
-		sql`(unixepoch())`,
-	),
-});
+import { real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const graphs = sqliteTable("graphs", {
 	id: text("id").primaryKey(),

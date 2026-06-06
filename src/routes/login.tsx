@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { authClient } from "#/lib/auth-client";
 
-export const Route = createFileRoute("/demo/better-auth")({
-	component: BetterAuthDemo,
+export const Route = createFileRoute("/login")({
+	component: LoginPage,
 });
 
-function BetterAuthDemo() {
+function LoginPage() {
 	const { data: session, isPending } = authClient.useSession();
 	const [isSignUp, setIsSignUp] = useState(false);
 	const [email, setEmail] = useState("");
@@ -65,19 +65,6 @@ function BetterAuthDemo() {
 					>
 						Sign out
 					</button>
-
-					<p className="text-xs text-center text-neutral-400 dark:text-neutral-500">
-						Built with{" "}
-						<a
-							href="https://better-auth.com"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-medium hover:text-neutral-600 dark:hover:text-neutral-300"
-						>
-							BETTER-AUTH
-						</a>
-						.
-					</p>
 				</div>
 			</div>
 		);
@@ -216,19 +203,6 @@ function BetterAuthDemo() {
 							: "Don't have an account? Sign up"}
 					</button>
 				</div>
-
-				<p className="mt-6 text-xs text-center text-neutral-400 dark:text-neutral-500">
-					Built with{" "}
-					<a
-						href="https://better-auth.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="font-medium hover:text-neutral-600 dark:hover:text-neutral-300"
-					>
-						BETTER-AUTH
-					</a>
-					.
-				</p>
 			</div>
 		</div>
 	);
