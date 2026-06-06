@@ -34,7 +34,7 @@ function GraphsPage() {
 						グラフ機能を使うにはログインが必要です。
 					</p>
 					<Link
-						to="/demo/better-auth"
+						to="/login"
 						className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						Sign in

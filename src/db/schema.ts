@@ -7,16 +7,6 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const todos = sqliteTable("todos", {
-	id: integer({ mode: "number" }).primaryKey({
-		autoIncrement: true,
-	}),
-	title: text().notNull(),
-	createdAt: integer("created_at", { mode: "timestamp" }).default(
-		sql`(unixepoch())`,
-	),
-});
-
 export const graphs = sqliteTable("graphs", {
 	id: text("id").primaryKey(),
 	userId: text("user_id").notNull(),
