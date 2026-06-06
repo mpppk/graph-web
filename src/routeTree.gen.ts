@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
+import { Route as GraphsGraphIdRouteImport } from './routes/graphs/$graphId'
 import { Route as DemoDrizzleRouteImport } from './routes/demo/drizzle'
 import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -23,6 +25,16 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GraphsIndexRoute = GraphsIndexRouteImport.update({
+  id: '/graphs/',
+  path: '/graphs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GraphsGraphIdRoute = GraphsGraphIdRouteImport.update({
+  id: '/graphs/$graphId',
+  path: '/graphs/$graphId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoDrizzleRoute = DemoDrizzleRouteImport.update({
@@ -46,6 +58,8 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
+  '/graphs/$graphId': typeof GraphsGraphIdRoute
+  '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +67,8 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
+  '/graphs/$graphId': typeof GraphsGraphIdRoute
+  '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -61,6 +77,8 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
+  '/graphs/$graphId': typeof GraphsGraphIdRoute
+  '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -70,15 +88,26 @@ export interface FileRouteTypes {
     | '/about'
     | '/demo/better-auth'
     | '/demo/drizzle'
+    | '/graphs/$graphId'
+    | '/graphs/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/demo/better-auth' | '/demo/drizzle' | '/api/auth/$'
+  to:
+    | '/'
+    | '/about'
+    | '/demo/better-auth'
+    | '/demo/drizzle'
+    | '/graphs/$graphId'
+    | '/graphs'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/demo/better-auth'
     | '/demo/drizzle'
+    | '/graphs/$graphId'
+    | '/graphs/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -87,6 +116,8 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   DemoBetterAuthRoute: typeof DemoBetterAuthRoute
   DemoDrizzleRoute: typeof DemoDrizzleRoute
+  GraphsGraphIdRoute: typeof GraphsGraphIdRoute
+  GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -104,6 +135,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/graphs/': {
+      id: '/graphs/'
+      path: '/graphs'
+      fullPath: '/graphs/'
+      preLoaderRoute: typeof GraphsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/graphs/$graphId': {
+      id: '/graphs/$graphId'
+      path: '/graphs/$graphId'
+      fullPath: '/graphs/$graphId'
+      preLoaderRoute: typeof GraphsGraphIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/drizzle': {
@@ -135,6 +180,8 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   DemoBetterAuthRoute: DemoBetterAuthRoute,
   DemoDrizzleRoute: DemoDrizzleRoute,
+  GraphsGraphIdRoute: GraphsGraphIdRoute,
+  GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
