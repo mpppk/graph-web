@@ -1,6 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Node as RFNode } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "#/components/ui/button";
+import { Input } from "#/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 import {
 	deleteNodeMetadata,
 	listNodeMetadata,
@@ -80,70 +89,75 @@ export function NodeSidePanel({
 	if (!node) return null;
 
 	return (
-		<aside className="flex w-72 flex-shrink-0 flex-col border-l border-slate-200 bg-white">
-			<div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-				<span className="text-sm font-semibold text-slate-700">Node</span>
-				<button
+		<aside className="flex w-72 flex-shrink-0 flex-col border-l bg-card">
+			<div className="flex items-center justify-between border-b px-4 py-3">
+				<span className="text-sm font-semibold text-foreground">Node</span>
+				<Button
 					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-7 w-7"
 					onClick={onClose}
-					className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
 					aria-label="Close panel"
 				>
 					✕
-				</button>
+				</Button>
 			</div>
 
 			<div className="flex-1 overflow-y-auto p-4 space-y-5">
 				<section>
-					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Label
 					</p>
-					<p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+					<p className="rounded-md border bg-muted px-3 py-2 text-sm text-foreground">
 						{label}
 					</p>
-					<p className="mt-1 text-xs text-slate-400">
+					<p className="mt-1 text-xs text-muted-foreground">
 						ダブルクリックでキャンバス上から編集
 					</p>
 				</section>
 
 				<section>
-					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						タイプ
 					</p>
-					<select
-						value={currentNodeType}
-						onChange={(e) => {
-							const val = e.target.value;
-							onUpdateNodeType(nodeId, val || null);
+					<Select
+						value={currentNodeType || "__none__"}
+						onValueChange={(val) => {
+							onUpdateNodeType(nodeId, val === "__none__" ? null : val);
 						}}
-						className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
 					>
-						<option value="">なし</option>
-						{PREDEFINED_NODE_TYPES.map((t) => (
-							<option key={t} value={t}>
-								{t}
-							</option>
-						))}
-					</select>
+						<SelectTrigger className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__none__">なし</SelectItem>
+							{PREDEFINED_NODE_TYPES.map((t) => (
+								<SelectItem key={t} value={t}>
+									{t}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</section>
 
 				<section>
-					<p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+					<p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Metadata
 					</p>
 
 					{metadata.length === 0 && (
-						<p className="text-xs text-slate-400">メタデータなし</p>
+						<p className="text-xs text-muted-foreground">メタデータなし</p>
 					)}
 
 					<ul className="space-y-2">
 						{metadata.map((m) => (
 							<li key={m.id} className="flex items-center gap-2">
-								<span className="w-24 shrink-0 truncate rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+								<span className="w-24 shrink-0 truncate rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
 									{m.key}
 								</span>
 								{editingId === m.id ? (
-									<input
+									<Input
 										ref={editInputRef}
 										value={editDraft}
 										onChange={(e) => setEditDraft(e.target.value)}
@@ -152,71 +166,78 @@ export function NodeSidePanel({
 											if (e.key === "Enter") handleEditCommit(m.id, m.key);
 											if (e.key === "Escape") setEditingId(null);
 										}}
-										className="flex-1 rounded border border-blue-400 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+										className="h-7 flex-1 text-xs"
 									/>
 								) : (
 									<button
 										type="button"
-										className="flex-1 truncate rounded px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
+										className="flex-1 truncate rounded px-2 py-1 text-left text-xs text-foreground hover:bg-accent"
 										onClick={() => handleEditStart(m.id, m.value)}
 										title="クリックして編集"
 									>
 										{m.value || (
-											<span className="italic text-slate-400">（空）</span>
+											<span className="italic text-muted-foreground">
+												（空）
+											</span>
 										)}
 									</button>
 								)}
-								<button
+								<Button
 									type="button"
+									variant="ghost"
+									size="icon"
 									onClick={() => deleteMeta.mutate(m.id)}
-									className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-400"
+									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
 									aria-label="Delete metadata"
 								>
 									✕
-								</button>
+								</Button>
 							</li>
 						))}
 					</ul>
 
 					<div className="mt-3 flex gap-2">
-						<input
+						<Input
 							value={newKey}
 							onChange={(e) => setNewKey(e.target.value)}
 							placeholder="key"
-							className="w-24 shrink-0 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+							className="h-7 w-24 shrink-0 text-xs"
 							onKeyDown={(e) => {
 								if (e.key === "Enter") handleAddMeta();
 							}}
 						/>
-						<input
+						<Input
 							value={newValue}
 							onChange={(e) => setNewValue(e.target.value)}
 							placeholder="value"
-							className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+							className="h-7 flex-1 text-xs"
 							onKeyDown={(e) => {
 								if (e.key === "Enter") handleAddMeta();
 							}}
 						/>
-						<button
+						<Button
 							type="button"
+							variant="secondary"
+							size="sm"
 							onClick={handleAddMeta}
 							disabled={!newKey.trim()}
-							className="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40"
+							className="h-7 shrink-0 text-xs"
 						>
 							追加
-						</button>
+						</Button>
 					</div>
 				</section>
 			</div>
 
-			<div className="border-t border-slate-200 p-4">
-				<button
+			<div className="border-t p-4">
+				<Button
 					type="button"
+					variant="destructive"
+					className="w-full"
 					onClick={() => onDeleteNode(nodeId)}
-					className="w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
 				>
 					Delete Node
-				</button>
+				</Button>
 			</div>
 		</aside>
 	);

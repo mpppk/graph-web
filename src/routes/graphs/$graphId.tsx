@@ -39,7 +39,7 @@ function GraphPage() {
 	return (
 		<Suspense
 			fallback={
-				<div className="flex h-screen items-center justify-center text-slate-400">
+				<div className="flex h-screen items-center justify-center text-muted-foreground">
 					Loading canvas…
 				</div>
 			}
