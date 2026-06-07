@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
+import { Button } from "#/components/ui/button";
+import { Card, CardContent } from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
 import type { graphs } from "#/db/schema";
 import {
 	createGraph,
@@ -61,89 +64,91 @@ export function GraphList({ initialGraphs }: { initialGraphs: Graph[] }) {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h2 className="text-xl font-semibold text-slate-800">Graphs</h2>
-				<button
+				<h2 className="text-xl font-semibold text-foreground">Graphs</h2>
+				<Button
 					type="button"
 					disabled={createGraphMutation.isPending}
 					onClick={() => createGraphMutation.mutate("New Graph")}
-					className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
 				>
 					{createGraphMutation.isPending ? "Creating…" : "+ New Graph"}
-				</button>
+				</Button>
 			</div>
 
 			{graphList.length === 0 ? (
-				<p className="py-8 text-center text-slate-400">
+				<p className="py-8 text-center text-muted-foreground">
 					No graphs yet. Create one to get started.
 				</p>
 			) : (
 				<ul className="space-y-2">
 					{graphList.map((g) => (
-						<li
-							key={g.id}
-							className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-						>
-							<div className="flex-1 text-left min-w-0">
-								{editingGraphId === g.id ? (
-									<input
-										ref={nameInputRef}
-										value={editingDraft}
-										onChange={(e) => setEditingDraft(e.target.value)}
-										onBlur={commitGraphName}
-										onKeyDown={(e) => {
-											if (e.key === "Enter") commitGraphName();
-											if (e.key === "Escape") setEditingGraphId(null);
-										}}
-										className="w-full rounded border border-blue-400 px-1 py-0 text-base font-medium text-blue-600 outline-none focus:ring-1 focus:ring-blue-400"
-									/>
-								) : (
-									<button
-										type="button"
-										onClick={() => {
-											if (singleClickTimer.current)
-												clearTimeout(singleClickTimer.current);
-											singleClickTimer.current = setTimeout(
-												() =>
-													navigate({
-														to: "/graphs/$graphId",
-														params: { graphId: g.id },
-													}),
-												250,
-											);
-										}}
-										onDoubleClick={(e) => {
-											e.stopPropagation();
-											if (singleClickTimer.current) {
-												clearTimeout(singleClickTimer.current);
-												singleClickTimer.current = null;
-											}
-											setEditingDraft(g.name);
-											setEditingGraphId(g.id);
-											setTimeout(() => nameInputRef.current?.select(), 0);
-										}}
-										className="text-left"
-									>
-										<div className="font-medium text-blue-600 hover:underline">
-											{g.name}
+						<li key={g.id}>
+							<Card>
+								<CardContent className="flex items-start justify-between p-4">
+									<div className="min-w-0 flex-1 text-left">
+										{editingGraphId === g.id ? (
+											<Input
+												ref={nameInputRef}
+												value={editingDraft}
+												onChange={(e) => setEditingDraft(e.target.value)}
+												onBlur={commitGraphName}
+												onKeyDown={(e) => {
+													if (e.key === "Enter") commitGraphName();
+													if (e.key === "Escape") setEditingGraphId(null);
+												}}
+												className="h-7 max-w-xs text-base font-medium text-primary"
+											/>
+										) : (
+											<button
+												type="button"
+												onClick={() => {
+													if (singleClickTimer.current)
+														clearTimeout(singleClickTimer.current);
+													singleClickTimer.current = setTimeout(
+														() =>
+															navigate({
+																to: "/graphs/$graphId",
+																params: { graphId: g.id },
+															}),
+														250,
+													);
+												}}
+												onDoubleClick={(e) => {
+													e.stopPropagation();
+													if (singleClickTimer.current) {
+														clearTimeout(singleClickTimer.current);
+														singleClickTimer.current = null;
+													}
+													setEditingDraft(g.name);
+													setEditingGraphId(g.id);
+													setTimeout(() => nameInputRef.current?.select(), 0);
+												}}
+												className="text-left"
+											>
+												<div className="font-medium text-primary hover:underline">
+													{g.name}
+												</div>
+											</button>
+										)}
+										{g.description && (
+											<div className="mt-1 text-sm text-muted-foreground">
+												{g.description}
+											</div>
+										)}
+										<div className="mt-2 font-mono text-xs text-muted-foreground">
+											{g.createdAt}
 										</div>
-									</button>
-								)}
-								{g.description && (
-									<div className="mt-1 text-sm text-slate-500">
-										{g.description}
 									</div>
-								)}
-								<div className="mt-2 font-mono text-xs text-slate-400">
-									{g.createdAt}
-								</div>
-							</div>
-							<button
-								type="button"
-								onClick={() => deleteGraphMutation.mutate(g.id)}
-								className="ml-4 rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50"
-							>
-								Delete
-							</button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => deleteGraphMutation.mutate(g.id)}
+										className="ml-4 text-destructive hover:text-destructive"
+									>
+										Delete
+									</Button>
+								</CardContent>
+							</Card>
 						</li>
 					))}
 				</ul>
