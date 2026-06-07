@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraphList } from "#/components/graph/GraphList";
+import { Button } from "#/components/ui/button";
 import { authClient } from "#/lib/auth-client";
 import { listGraphs } from "#/lib/graph-server-fns";
 
@@ -21,7 +22,7 @@ function GraphsPage() {
 	if (isPending) {
 		return (
 			<div className="flex items-center justify-center py-20">
-				<div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-200 border-t-neutral-900 dark:border-neutral-800 dark:border-t-neutral-100" />
+				<div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
 			</div>
 		);
 	}
@@ -30,22 +31,19 @@ function GraphsPage() {
 		return (
 			<div className="flex items-center justify-center py-20">
 				<div className="text-center">
-					<p className="text-slate-600 mb-4">
+					<p className="mb-4 text-muted-foreground">
 						グラフ機能を使うにはログインが必要です。
 					</p>
-					<Link
-						to="/login"
-						className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					>
-						Sign in
-					</Link>
+					<Button asChild>
+						<Link to="/login">Sign in</Link>
+					</Button>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50">
+		<div className="min-h-screen">
 			<main className="mx-auto max-w-4xl px-6 py-8">
 				<GraphList initialGraphs={loaderData} />
 			</main>

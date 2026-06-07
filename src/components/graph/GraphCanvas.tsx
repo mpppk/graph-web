@@ -15,6 +15,7 @@ import {
 	useNodesState,
 } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "#/components/ui/button";
 import type { graphs } from "#/db/schema";
 import {
 	createEdge,
@@ -296,44 +297,52 @@ function GraphCanvasInner({
 
 	return (
 		<div className="flex h-screen flex-col">
-			<header className="flex items-center gap-4 border-b border-slate-200 bg-white px-4 py-3">
-				<button
+			<header className="flex items-center gap-4 border-b bg-card px-4 py-3">
+				<Button
 					type="button"
+					variant="ghost"
+					size="sm"
 					onClick={() => navigate({ to: "/graphs" })}
-					className="rounded px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
 				>
 					← Back
-				</button>
-				<h1 className="font-semibold text-slate-800">{graph.name}</h1>
+				</Button>
+				<h1 className="font-semibold text-foreground">{graph.name}</h1>
 				{graph.description && (
-					<span className="text-sm text-slate-400">{graph.description}</span>
+					<span className="text-sm text-muted-foreground">
+						{graph.description}
+					</span>
 				)}
 				<div className="ml-auto flex gap-2">
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="sm"
 						onClick={handleCopyMermaid}
-						className="rounded-lg border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
 					>
 						{mermaidCopied ? "Copied!" : "Copy as Mermaid"}
-					</button>
+					</Button>
 					<div ref={layoutMenuRef} className="relative flex">
-						<button
+						<Button
 							type="button"
+							variant="outline"
+							size="sm"
 							onClick={() => runLayout(selectedAlgo)}
-							className="rounded-l-lg border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
+							className="rounded-r-none"
 						>
 							⤢ 再配置: {selectedAlgo.label}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
+							variant="outline"
+							size="sm"
 							aria-label="レイアウトアルゴリズムを選択"
 							onClick={() => setLayoutMenuOpen((v) => !v)}
-							className="rounded-r-lg border border-l-0 border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
+							className="rounded-l-none border-l-0 px-2"
 						>
 							▼
-						</button>
+						</Button>
 						{layoutMenuOpen && (
-							<ul className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+							<ul className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border bg-popover py-1 text-popover-foreground shadow-md">
 								{LAYOUT_ALGORITHMS.map((algo) => (
 									<li key={algo.id}>
 										<button
@@ -343,9 +352,9 @@ function GraphCanvasInner({
 												setLayoutMenuOpen(false);
 												runLayout(algo);
 											}}
-											className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50 ${
+											className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
 												algo.id === selectedAlgo.id
-													? "bg-slate-100 font-medium"
+													? "bg-muted font-medium"
 													: ""
 											}`}
 										>
@@ -356,14 +365,14 @@ function GraphCanvasInner({
 							</ul>
 						)}
 					</div>
-					<button
+					<Button
 						type="button"
+						size="sm"
 						disabled={createNodeMutation.isPending}
 						onClick={() => createNodeMutation.mutate("New Node")}
-						className="rounded-lg bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
 					>
 						+ Add Node
-					</button>
+					</Button>
 				</div>
 			</header>
 

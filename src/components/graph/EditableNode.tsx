@@ -68,7 +68,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 				color: hasTypeColor ? "#ffffff" : undefined,
 			}}
 			className={`flex min-w-[120px] max-w-[200px] items-center justify-center rounded-md border-2 px-3 py-2 text-sm font-medium shadow-sm ${
-				selected ? "border-blue-500" : "border-slate-300"
+				selected ? "border-primary" : "border-border"
 			}`}
 		>
 			<Handle type="target" position={Position.Top} />

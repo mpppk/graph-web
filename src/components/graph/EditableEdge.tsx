@@ -95,13 +95,13 @@ export function EditableEdge({
 							onBlur={commitEdit}
 							onKeyDown={handleKeyDown}
 							onKeyUp={(e) => e.stopPropagation()}
-							className="rounded border border-blue-400 bg-white px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400 shadow-sm"
+							className="rounded border border-ring bg-background px-2 py-1 text-xs text-foreground shadow-sm outline-none focus:ring-1 focus:ring-ring"
 						/>
 					) : label ? (
 						<button
 							type="button"
 							onDoubleClick={handleDoubleClick}
-							className="cursor-pointer rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm hover:border-blue-300"
+							className="cursor-pointer rounded border bg-background px-2 py-1 text-xs text-foreground shadow-sm hover:border-ring"
 						>
 							{label}
 						</button>
