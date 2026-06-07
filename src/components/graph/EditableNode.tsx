@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
+import { getContrastTextColor } from "#/lib/utils";
 import { NODE_TYPE_COLORS } from "./constants";
 
 export function EditableNode({ id, data, selected }: NodeProps) {
@@ -13,7 +14,9 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	const bgColor = nodeType
 		? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff")
 		: "#ffffff";
-	const hasTypeColor = !!nodeType && !!NODE_TYPE_COLORS[nodeType];
+	const textColor = getContrastTextColor(bgColor);
+	const placeholderClass =
+		textColor === "#ffffff" ? "placeholder-white/60" : "placeholder-black/40";
 
 	const mutation = useMutation({
 		mutationFn: (label: string) => updateNodeLabel({ data: { id, label } }),
@@ -65,7 +68,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 		<div
 			style={{
 				backgroundColor: bgColor,
-				color: hasTypeColor ? "#ffffff" : undefined,
+				color: textColor,
 			}}
 			className={`flex min-w-[120px] max-w-[200px] items-center justify-center rounded-md border-2 px-3 py-2 text-sm font-medium shadow-sm ${
 				selected ? "border-primary" : "border-border"
@@ -79,7 +82,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 					onChange={(e) => setDraft(e.target.value)}
 					onBlur={commitEdit}
 					onKeyDown={handleKeyDown}
-					className={`w-full bg-transparent text-center text-sm outline-none ${hasTypeColor ? "placeholder-white/60" : ""}`}
+					className={`w-full bg-transparent text-center text-sm outline-none ${placeholderClass}`}
 					onKeyUp={(e) => e.stopPropagation()}
 				/>
 			) : (
