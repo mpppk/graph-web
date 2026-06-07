@@ -297,7 +297,7 @@ function GraphCanvasInner({
 
 	return (
 		<div className="flex h-screen flex-col">
-			<header className="flex items-center gap-4 border-b bg-card px-4 py-3">
+			<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
 				<Button
 					type="button"
 					variant="ghost"
@@ -306,13 +306,15 @@ function GraphCanvasInner({
 				>
 					← Back
 				</Button>
-				<h1 className="font-semibold text-foreground">{graph.name}</h1>
+				<h1 className="min-w-0 flex-1 truncate font-semibold text-foreground">
+					{graph.name}
+				</h1>
 				{graph.description && (
-					<span className="text-sm text-muted-foreground">
+					<span className="min-w-0 truncate text-sm text-muted-foreground">
 						{graph.description}
 					</span>
 				)}
-				<div className="ml-auto flex gap-2">
+				<div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:ml-auto">
 					<Button
 						type="button"
 						variant="outline"
