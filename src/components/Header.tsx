@@ -15,16 +15,6 @@ export default function Header() {
 					</Link>
 				</h2>
 
-				<div className="order-3 flex w-full flex-wrap items-center gap-x-4 gap-y-1 pb-1 text-sm font-semibold sm:order-none sm:w-auto sm:flex-nowrap sm:pb-0">
-					<Link
-						to="/graphs"
-						className="text-muted-foreground transition-colors hover:text-foreground"
-						activeProps={{ className: "text-foreground" }}
-					>
-						Graphs
-					</Link>
-				</div>
-
 				<div className="ml-auto flex items-center gap-1.5 sm:gap-2">
 					<BetterAuthHeader />
 					<ThemeToggle />
