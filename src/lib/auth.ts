@@ -10,11 +10,7 @@ export const auth = betterAuth({
 		provider: "sqlite",
 		schema: authSchema,
 	}),
-	trustedOrigins: [
-		"http://localhost:3000",
-		"https://graph-web.niboshi.workers.dev",
-		"https://graph-web-preview.niboshi.workers.dev",
-	],
+	trustedOrigins: ["http://localhost:3000", "https://*.niboshi.workers.dev"],
 	emailAndPassword: {
 		enabled: true,
 	},
