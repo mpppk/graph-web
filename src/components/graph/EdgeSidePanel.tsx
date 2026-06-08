@@ -33,7 +33,7 @@ export function EdgeSidePanel({
 	};
 
 	return (
-		<aside className="flex w-72 flex-shrink-0 flex-col border-l bg-card">
+		<aside className="fixed inset-x-0 bottom-0 z-20 flex max-h-[60vh] flex-col rounded-t-xl border-t bg-card shadow-lg md:static md:z-auto md:max-h-none md:w-72 md:flex-shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none">
 			<div className="flex items-center justify-between border-b px-4 py-3">
 				<span className="text-sm font-semibold text-foreground">Edge</span>
 				<Button
