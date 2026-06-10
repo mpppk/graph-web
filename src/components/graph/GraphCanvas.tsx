@@ -40,7 +40,7 @@ import { NodeSidePanel } from "./NodeSidePanel";
 
 type Graph = typeof graphs.$inferSelect;
 
-const nodeTypes = { default: EditableNode };
+const nodeTypes = { editableNode: EditableNode };
 const edgeTypes = { editable: EditableEdge };
 
 function GraphCanvasInner({
@@ -100,7 +100,7 @@ function GraphCanvasInner({
 				...prev,
 				{
 					id: newNode.id,
-					type: "default",
+					type: "editableNode",
 					position: { x: newNode.x, y: newNode.y },
 					data: {
 						label: newNode.label,

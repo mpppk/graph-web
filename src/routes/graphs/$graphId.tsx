@@ -16,7 +16,7 @@ export const Route = createFileRoute("/graphs/$graphId")({
 
 		const initialNodes: RFNode[] = nodeList.map((n) => ({
 			id: n.id,
-			type: "default",
+			type: "editableNode",
 			position: { x: n.x, y: n.y },
 			data: { label: n.label, nodeType: n.nodeType ?? null },
 		}));

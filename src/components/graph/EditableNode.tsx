@@ -1,5 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
+import {
+	Handle,
+	type NodeProps,
+	Position,
+	useReactFlow,
+	useUpdateNodeInternals,
+} from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
 import { NODE_TYPE_COLORS } from "./constants";
@@ -9,6 +15,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	const [draft, setDraft] = useState(data.label as string);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateNodeData } = useReactFlow();
+	const updateNodeInternals = useUpdateNodeInternals();
 	const nodeType = data.nodeType as string | null | undefined;
 	const bgColor = nodeType
 		? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff")
@@ -34,6 +41,10 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 		}
 		setEditing(false);
 	}, [draft, data.label, mutation, updateNodeData, id]);
+
+	useEffect(() => {
+		updateNodeInternals(id);
+	}, [editing, id, updateNodeInternals]);
 
 	useEffect(() => {
 		if (data.autoEdit) {
