@@ -1,11 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import {
-	Handle,
-	type NodeProps,
-	Position,
-	useReactFlow,
-	useUpdateNodeInternals,
-} from "@xyflow/react";
+import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
 import { NODE_TYPE_COLORS } from "./constants";
@@ -15,7 +9,6 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	const [draft, setDraft] = useState(data.label as string);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateNodeData } = useReactFlow();
-	const updateNodeInternals = useUpdateNodeInternals();
 	const nodeType = data.nodeType as string | null | undefined;
 	const bgColor = nodeType
 		? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff")
@@ -41,10 +34,6 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 		}
 		setEditing(false);
 	}, [draft, data.label, mutation, updateNodeData, id]);
-
-	useEffect(() => {
-		updateNodeInternals(id);
-	}, [editing, id, updateNodeInternals]);
 
 	useEffect(() => {
 		if (data.autoEdit) {
@@ -79,7 +68,9 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 				color: hasTypeColor ? "#ffffff" : undefined,
 			}}
 			className={`flex items-center justify-center rounded-md border-2 px-3 py-2 text-sm font-medium shadow-sm ${
-				editing ? "min-w-[120px] w-[360px] max-w-[360px]" : "min-w-[120px] max-w-[200px]"
+				editing
+					? "min-w-[120px] w-[360px] max-w-[360px]"
+					: "min-w-[120px] max-w-[200px]"
 			} ${selected ? "border-primary" : "border-border"}`}
 		>
 			<Handle type="target" position={Position.Top} />
