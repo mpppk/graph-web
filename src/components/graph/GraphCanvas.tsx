@@ -40,6 +40,25 @@ import { NodeSidePanel } from "./NodeSidePanel";
 
 type Graph = typeof graphs.$inferSelect;
 
+function useColorMode(): "dark" | "light" {
+	const [colorMode, setColorMode] = useState<"dark" | "light">(() =>
+		document.documentElement.classList.contains("dark") ? "dark" : "light",
+	);
+	useEffect(() => {
+		const observer = new MutationObserver(() => {
+			setColorMode(
+				document.documentElement.classList.contains("dark") ? "dark" : "light",
+			);
+		});
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+		return () => observer.disconnect();
+	}, []);
+	return colorMode;
+}
+
 const nodeTypes = { default: EditableNode };
 const edgeTypes = { editable: EditableEdge };
 
@@ -53,6 +72,7 @@ function GraphCanvasInner({
 	initialEdges: RFEdge[];
 }) {
 	const navigate = useNavigate();
+	const colorMode = useColorMode();
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -396,6 +416,7 @@ function GraphCanvasInner({
 						onEdgesDelete={onEdgesDelete}
 						deleteKeyCode="Delete"
 						fitView
+						colorMode={colorMode}
 						onInit={(instance) => {
 							rfInstanceRef.current = instance;
 						}}
