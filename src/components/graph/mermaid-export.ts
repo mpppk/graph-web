@@ -1,4 +1,5 @@
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
+import { getContrastTextColor } from "#/lib/utils";
 import { NODE_TYPE_COLORS } from "./constants";
 
 function escapeMermaidLabel(text: string): string {
@@ -39,10 +40,10 @@ export function generateMermaidDiagram(
 		),
 	];
 
-	const classDefLines = usedTypes.map(
-		(t) =>
-			`  classDef ${t} fill:${NODE_TYPE_COLORS[t]},stroke:none,color:#ffffff`,
-	);
+	const classDefLines = usedTypes.map((t) => {
+		const fill = NODE_TYPE_COLORS[t];
+		return `  classDef ${t} fill:${fill},stroke:none,color:${getContrastTextColor(fill)}`;
+	});
 
 	const classAssignLines = usedTypes.flatMap((t) => {
 		const matchingIds = nodes
