@@ -1,6 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
-import { Button } from "#/components/ui/button";
+import { UserIcon } from "lucide-react";
+import ThemeToggle from "#/components/ThemeToggle";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import { authClient } from "#/lib/auth-client";
 
 export default function BetterAuthHeader() {
@@ -12,30 +19,70 @@ export default function BetterAuthHeader() {
 
 	if (session?.user) {
 		return (
-			<div className="flex items-center gap-2">
-				<Avatar className="h-8 w-8">
-					<AvatarImage src={session.user.image ?? undefined} alt="" />
-					<AvatarFallback className="text-xs">
-						{session.user.name?.charAt(0).toUpperCase() || "U"}
-					</AvatarFallback>
-				</Avatar>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					onClick={() => {
-						void authClient.signOut();
-					}}
-				>
-					Sign out
-				</Button>
-			</div>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<button
+						type="button"
+						aria-label="アカウントメニュー"
+						className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					>
+						{session.user.image ? (
+							<img
+								src={session.user.image}
+								alt=""
+								className="h-8 w-8 rounded-full object-cover transition-shadow hover:ring-2 hover:ring-ring"
+							/>
+						) : (
+							<div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-shadow hover:ring-2 hover:ring-ring">
+								<span className="text-xs font-medium text-muted-foreground">
+									{session.user.name?.charAt(0).toUpperCase() ?? "U"}
+								</span>
+							</div>
+						)}
+					</button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<div className="flex items-center justify-between px-2 py-1.5">
+						<span className="text-sm">ダークモード</span>
+						<ThemeToggle />
+					</div>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onSelect={() => {
+							void authClient.signOut();
+						}}
+					>
+						Sign out
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 		);
 	}
 
 	return (
-		<Button asChild variant="outline" size="sm">
-			<Link to="/login">Sign in</Link>
-		</Button>
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<button
+					type="button"
+					aria-label="アカウントメニュー"
+					className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-shadow hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				>
+					<UserIcon
+						className="size-4 text-muted-foreground"
+						aria-hidden
+					/>
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent>
+				<div className="flex items-center justify-between px-2 py-1.5">
+					<span className="text-sm">ダークモード</span>
+					<ThemeToggle />
+				</div>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem asChild>
+					<Link to="/login">Sign in</Link>
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
