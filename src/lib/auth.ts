@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { drizzle } from "drizzle-orm/d1";
 import * as authSchema from "#/db/auth-schema";
@@ -14,5 +15,18 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
-	plugins: [tanstackStartCookies()],
+	plugins: [
+		tanstackStartCookies(),
+		organization({
+			teams: {
+				enabled: true,
+				defaultTeam: {
+					enabled: false,
+				},
+			},
+			sendInvitationEmail: async (_data) => {
+				// invite-link-only pattern; no email sending
+			},
+		}),
+	],
 });

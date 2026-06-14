@@ -28,9 +28,13 @@ const SCOPE_LABELS: Record<string, string> = {
 
 export function NodeTypeManagerPanel({
 	graphId,
+	orgId,
+	teamId,
 	onClose,
 }: {
 	graphId: string;
+	orgId?: string;
+	teamId?: string;
 	onClose: () => void;
 }) {
 	const { typeList } = useNodeTypes();
@@ -44,7 +48,9 @@ export function NodeTypeManagerPanel({
 	// New-type form state.
 	const [newName, setNewName] = useState("");
 	const [newColor, setNewColor] = useState("#3b82f6");
-	const [newScope, setNewScope] = useState<"user" | "graph">("user");
+	const [newScope, setNewScope] = useState<"user" | "graph" | "team" | "org">(
+		"user",
+	);
 	const [newFields, setNewFields] = useState("");
 
 	const createMut = useMutation({
@@ -139,7 +145,9 @@ export function NodeTypeManagerPanel({
 					</div>
 					<Select
 						value={newScope}
-						onValueChange={(v) => setNewScope(v as "user" | "graph")}
+						onValueChange={(v) =>
+							setNewScope(v as "user" | "graph" | "team" | "org")
+						}
 					>
 						<SelectTrigger className="w-full">
 							<SelectValue />
@@ -147,6 +155,10 @@ export function NodeTypeManagerPanel({
 						<SelectContent>
 							<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
 							<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
+							{teamId && (
+								<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
+							)}
+							{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
 						</SelectContent>
 					</Select>
 					<Input

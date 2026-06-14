@@ -72,11 +72,17 @@ function GraphCanvasInner({
 	initialNodes,
 	initialEdges,
 	initialNodeTypes,
+	backHref = "/graphs",
+	orgId,
+	teamId,
 }: {
 	graph: Graph;
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
+	backHref?: string;
+	orgId?: string;
+	teamId?: string;
 }) {
 	const navigate = useNavigate();
 	const qc = useQueryClient();
@@ -363,7 +369,9 @@ function GraphCanvasInner({
 						type="button"
 						variant="ghost"
 						size="sm"
-						onClick={() => navigate({ to: "/graphs" })}
+						onClick={() =>
+							navigate({ to: backHref } as Parameters<typeof navigate>[0])
+						}
 					>
 						← Back
 					</Button>
@@ -498,6 +506,8 @@ function GraphCanvasInner({
 					{typeManagerOpen && (
 						<NodeTypeManagerPanel
 							graphId={graph.id}
+							orgId={orgId}
+							teamId={teamId}
 							onClose={() => setTypeManagerOpen(false)}
 						/>
 					)}
@@ -512,6 +522,9 @@ export default function GraphCanvas(props: {
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
+	backHref?: string;
+	orgId?: string;
+	teamId?: string;
 }) {
 	return <GraphCanvasInner {...props} />;
 }
