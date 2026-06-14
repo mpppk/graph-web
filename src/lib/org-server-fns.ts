@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { auth } from "#/lib/auth";
-import { requireUserId } from "#/lib/graph-auth";
+import { requireUserId } from "#/lib/graph-auth-internal";
 
 export const listOrgs = createServerFn({ method: "GET" }).handler(async () => {
 	await requireUserId();

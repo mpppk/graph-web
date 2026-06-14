@@ -12,7 +12,7 @@ import {
 	nodeTypes,
 } from "#/db/schema";
 import { auth } from "#/lib/auth";
-import { requireUserId } from "#/lib/graph-auth";
+import { requireUserId } from "#/lib/graph-auth-internal";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
