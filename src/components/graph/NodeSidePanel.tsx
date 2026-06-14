@@ -23,12 +23,14 @@ export function NodeSidePanel({
 	onClose,
 	onDeleteNode,
 	onUpdateNodeType,
+	onUpdateNodeLabel,
 }: {
 	nodeId: string;
 	nodes: RFNode[];
 	onClose: () => void;
 	onDeleteNode: (id: string) => void;
 	onUpdateNodeType: (nodeId: string, nodeType: string | null) => void;
+	onUpdateNodeLabel: (nodeId: string, label: string) => void;
 }) {
 	const qc = useQueryClient();
 	const node = nodes.find((n) => n.id === nodeId);
@@ -60,9 +62,33 @@ export function NodeSidePanel({
 	const [editDraft, setEditDraft] = useState("");
 	const editInputRef = useRef<HTMLInputElement>(null);
 
+	const [labelEditing, setLabelEditing] = useState(false);
+	const [labelDraft, setLabelDraft] = useState("");
+	const labelInputRef = useRef<HTMLInputElement>(null);
+
 	useEffect(() => {
 		if (editingId) editInputRef.current?.focus();
 	}, [editingId]);
+
+	useEffect(() => {
+		if (labelEditing) {
+			labelInputRef.current?.focus();
+			labelInputRef.current?.select();
+		}
+	}, [labelEditing]);
+
+	const handleLabelEditStart = useCallback(() => {
+		setLabelDraft(label);
+		setLabelEditing(true);
+	}, [label]);
+
+	const handleLabelCommit = useCallback(() => {
+		const trimmed = labelDraft.trim();
+		if (trimmed && trimmed !== label) {
+			onUpdateNodeLabel(nodeId, trimmed);
+		}
+		setLabelEditing(false);
+	}, [labelDraft, label, nodeId, onUpdateNodeLabel]);
 
 	const handleAddMeta = useCallback(() => {
 		const k = newKey.trim();
@@ -109,12 +135,28 @@ export function NodeSidePanel({
 					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Label
 					</p>
-					<p className="rounded-md border bg-muted px-3 py-2 text-sm text-foreground">
-						{label}
-					</p>
-					<p className="mt-1 text-xs text-muted-foreground">
-						ダブルクリックでキャンバス上から編集
-					</p>
+					{labelEditing ? (
+						<Input
+							ref={labelInputRef}
+							value={labelDraft}
+							onChange={(e) => setLabelDraft(e.target.value)}
+							onBlur={handleLabelCommit}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") handleLabelCommit();
+								if (e.key === "Escape") setLabelEditing(false);
+							}}
+							className="text-sm"
+						/>
+					) : (
+						<button
+							type="button"
+							className="w-full rounded-md border bg-muted px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+							onClick={handleLabelEditStart}
+							title="クリックして編集"
+						>
+							{label}
+						</button>
+					)}
 				</section>
 
 				<section>

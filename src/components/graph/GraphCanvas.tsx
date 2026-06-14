@@ -23,6 +23,7 @@ import {
 	deleteEdge,
 	deleteNode,
 	updateEdgeLabel,
+	updateNodeLabel,
 	updateNodePosition,
 	updateNodeType,
 } from "#/lib/graph-server-fns";
@@ -196,6 +197,23 @@ function GraphCanvasInner({
 			updateNodeTypeMutation.mutate({ id: nodeId, nodeType: nodeTypeVal });
 		},
 		[setNodes, updateNodeTypeMutation],
+	);
+
+	const updateNodeLabelMutation = useMutation({
+		mutationFn: ({ id, label }: { id: string; label: string }) =>
+			updateNodeLabel({ data: { id, label } }),
+	});
+
+	const handleUpdateNodeLabel = useCallback(
+		(nodeId: string, label: string) => {
+			setNodes((nds) =>
+				nds.map((n) =>
+					n.id === nodeId ? { ...n, data: { ...n.data, label } } : n,
+				),
+			);
+			updateNodeLabelMutation.mutate({ id: nodeId, label });
+		},
+		[setNodes, updateNodeLabelMutation],
 	);
 
 	const onConnect: OnConnect = useCallback(
@@ -434,6 +452,7 @@ function GraphCanvasInner({
 						onClose={() => setSelectedNodeId(null)}
 						onDeleteNode={handleDeleteNodeFromPanel}
 						onUpdateNodeType={handleUpdateNodeType}
+						onUpdateNodeLabel={handleUpdateNodeLabel}
 					/>
 				)}
 				{selectedEdgeId && (
