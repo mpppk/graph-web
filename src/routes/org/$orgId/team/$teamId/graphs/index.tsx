@@ -25,7 +25,7 @@ import {
 
 type Graph = typeof graphs.$inferSelect;
 
-export const Route = createFileRoute("/org/$orgId/team/$teamId/graphs")({
+export const Route = createFileRoute("/org/$orgId/team/$teamId/graphs/")({
 	beforeLoad: async () => {
 		const session = await getSession();
 		if (!session) {
