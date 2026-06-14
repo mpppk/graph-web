@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { getRequest } from "@tanstack/react-start/server";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "#/db/index";
+import * as authSchema from "#/db/auth-schema";
 import {
 	edges,
 	graphs,
@@ -9,12 +11,11 @@ import {
 	nodeTypeFields,
 	nodeTypes,
 } from "#/db/schema";
+import { auth } from "#/lib/auth";
 import { requireUserId } from "#/lib/graph-auth";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-// Default node types seeded once per user (user-scope). These mirror the types
-// that used to be hardcoded in components/graph/constants.ts.
 const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 	{ name: "KPI", color: "#3b82f6" },
 	{ name: "Epic", color: "#8b5cf6" },
@@ -23,18 +24,35 @@ const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 	{ name: "Solution", color: "#14b8a6" },
 ];
 
-// Verify the given graph exists and is owned by the user; returns the graph.
-async function assertGraphOwner(graphId: string, userId: string) {
+// Verify the user can access the graph.
+// Team-owned graphs: user must be an org member.
+// Legacy user-owned graphs: user must be the owner.
+async function assertGraphAccess(graphId: string, userId: string) {
 	const [graph] = await db
 		.select()
 		.from(graphs)
-		.where(and(eq(graphs.id, graphId), eq(graphs.userId, userId)));
+		.where(eq(graphs.id, graphId));
 	if (!graph) throw new Error("Graph not found");
+
+	if (graph.teamId) {
+		const [graphTeam] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, graph.teamId));
+		if (!graphTeam) throw new Error("Graph not found");
+		const org = await auth.api.getFullOrganization({
+			headers: getRequest().headers,
+			query: { organizationId: graphTeam.organizationId },
+		});
+		const isMember = org?.members?.some((m) => m.userId === userId);
+		if (!isMember) throw new Error("Forbidden");
+	} else {
+		if (graph.userId !== userId) throw new Error("Forbidden");
+	}
 	return graph;
 }
 
-// Idempotently seed the default user-scope node types for a user. Safe to call
-// repeatedly thanks to the (scope, scopeId, name) unique index.
+// Idempotently seed the default user-scope node types for a user.
 async function ensureDefaultNodeTypes(userId: string) {
 	await db
 		.insert(nodeTypes)
@@ -50,19 +68,39 @@ async function ensureDefaultNodeTypes(userId: string) {
 		.onConflictDoNothing();
 }
 
-// Resolve a node type the user owns, throwing if missing/forbidden. A type is
-// owned if it is user-scope for this user, or graph-scope for a graph the user
-// owns.
+// Resolve a node type the user is allowed to modify.
+// Precedence: user-scope (own), graph-scope (own graph), team-scope (org member), org-scope (org member).
 async function requireOwnedNodeType(typeId: string, userId: string) {
 	const [type] = await db
 		.select()
 		.from(nodeTypes)
 		.where(eq(nodeTypes.id, typeId));
 	if (!type) throw new Error("Node type not found");
+
 	if (type.scope === "user") {
 		if (type.scopeId !== userId) throw new Error("Forbidden");
 	} else if (type.scope === "graph") {
-		await assertGraphOwner(type.scopeId, userId);
+		await assertGraphAccess(type.scopeId, userId);
+	} else if (type.scope === "team") {
+		// verify user is a member of the org that owns this team
+		const [scopeTeam] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, type.scopeId));
+		if (!scopeTeam) throw new Error("Node type not found");
+		const org = await auth.api.getFullOrganization({
+			headers: getRequest().headers,
+			query: { organizationId: scopeTeam.organizationId },
+		});
+		if (!org?.members?.some((m) => m.userId === userId))
+			throw new Error("Forbidden");
+	} else if (type.scope === "org") {
+		const org = await auth.api.getFullOrganization({
+			headers: getRequest().headers,
+			query: { organizationId: type.scopeId },
+		});
+		if (!org?.members?.some((m) => m.userId === userId))
+			throw new Error("Forbidden");
 	} else {
 		throw new Error("Unsupported node type scope");
 	}
@@ -71,21 +109,34 @@ async function requireOwnedNodeType(typeId: string, userId: string) {
 
 // ── Graph operations ──────────────────────────────────────────────────────────
 
-export const listGraphs = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const listGraphs = createServerFn({ method: "GET" })
+	.inputValidator((data: { teamId?: string } | undefined) => data ?? {})
+	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		return db.select().from(graphs).where(eq(graphs.userId, userId));
-	},
-);
+		if (data?.teamId) {
+			return db
+				.select()
+				.from(graphs)
+				.where(eq(graphs.teamId, data.teamId));
+		}
+		// Legacy: personal graphs with no team
+		return db
+			.select()
+			.from(graphs)
+			.where(and(eq(graphs.userId, userId), isNull(graphs.teamId)));
+	});
 
 export const createGraph = createServerFn({ method: "POST" })
-	.inputValidator((data: { name: string; description?: string }) => data)
+	.inputValidator(
+		(data: { name: string; description?: string; teamId?: string }) => data,
+	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		const id = crypto.randomUUID();
 		await db.insert(graphs).values({
 			id,
 			userId,
+			teamId: data.teamId ?? null,
 			name: data.name,
 			description: data.description ?? "",
 		});
@@ -97,22 +148,18 @@ export const getGraph = createServerFn({ method: "GET" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(and(eq(graphs.id, data.id), eq(graphs.userId, userId)));
-		if (!graph) throw new Error("Graph not found");
-		return graph;
+		return assertGraphAccess(data.id, userId);
 	});
 
 export const updateGraphName = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; name: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
+		await assertGraphAccess(data.id, userId);
 		await db
 			.update(graphs)
 			.set({ name: data.name })
-			.where(and(eq(graphs.id, data.id), eq(graphs.userId, userId)));
+			.where(eq(graphs.id, data.id));
 		const [graph] = await db
 			.select()
 			.from(graphs)
@@ -124,14 +171,14 @@ export const deleteGraph = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await db
-			.delete(graphs)
-			.where(and(eq(graphs.id, data.id), eq(graphs.userId, userId)));
-		// scopeId is a polymorphic column with no FK, so graph-scope node types
-		// must be cleaned up explicitly to avoid orphans (fields cascade).
+		await assertGraphAccess(data.id, userId);
+		await db.delete(graphs).where(eq(graphs.id, data.id));
+		// graph-scope node types have no FK so must be cleaned up explicitly (fields cascade).
 		await db
 			.delete(nodeTypes)
-			.where(and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, data.id)));
+			.where(
+				and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, data.id)),
+			);
 		return { success: true };
 	});
 
@@ -141,12 +188,7 @@ export const listNodes = createServerFn({ method: "GET" })
 	.inputValidator((data: { graphId: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		// verify graph ownership
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(and(eq(graphs.id, data.graphId), eq(graphs.userId, userId)));
-		if (!graph) throw new Error("Graph not found");
+		await assertGraphAccess(data.graphId, userId);
 		return db.select().from(nodes).where(eq(nodes.graphId, data.graphId));
 	});
 
@@ -156,11 +198,7 @@ export const createNode = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(and(eq(graphs.id, data.graphId), eq(graphs.userId, userId)));
-		if (!graph) throw new Error("Graph not found");
+		await assertGraphAccess(data.graphId, userId);
 		const id = crypto.randomUUID();
 		await db.insert(nodes).values({
 			id,
@@ -193,9 +231,6 @@ export const updateNodeLabel = createServerFn({ method: "POST" })
 		const [node] = await db.select().from(nodes).where(eq(nodes.id, data.id));
 		return node;
 	});
-
-// Assigning a node type goes through setNodeTypeWithTemplate (defined below)
-// so template metadata keys are seeded; there is no plain updateNodeType.
 
 export const deleteNode = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
@@ -306,27 +341,42 @@ export type NodeTypeWithFields = {
 	fields: { id: string; key: string; position: number }[];
 };
 
-// List the node types applicable to a graph: the graph owner's user-scope types
-// plus this graph's graph-scope types. Lazily seeds the user defaults.
+// List the node types applicable to a graph:
+// user-scope (graph owner) + graph-scope + team-scope + org-scope (when team-owned).
 export const listNodeTypesForGraph = createServerFn({ method: "GET" })
 	.inputValidator((data: { graphId: string }) => data)
 	.handler(async ({ data }): Promise<NodeTypeWithFields[]> => {
 		const userId = await requireUserId();
-		const graph = await assertGraphOwner(data.graphId, userId);
+		const graph = await assertGraphAccess(data.graphId, userId);
 		await ensureDefaultNodeTypes(graph.userId);
+
+		const conditions: ReturnType<typeof and>[] = [
+			and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
+			and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, data.graphId)),
+		];
+
+		if (graph.teamId) {
+			const [graphTeam] = await db
+				.select()
+				.from(authSchema.team)
+				.where(eq(authSchema.team.id, graph.teamId));
+			if (graphTeam) {
+				conditions.push(
+					and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
+				);
+				conditions.push(
+					and(
+						eq(nodeTypes.scope, "org"),
+						eq(nodeTypes.scopeId, graphTeam.organizationId),
+					),
+				);
+			}
+		}
 
 		const types = await db
 			.select()
 			.from(nodeTypes)
-			.where(
-				or(
-					and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
-					and(
-						eq(nodeTypes.scope, "graph"),
-						eq(nodeTypes.scopeId, data.graphId),
-					),
-				),
-			);
+			.where(or(...(conditions as Parameters<typeof or>)));
 
 		const typeIds = types.map((t) => t.id);
 		const fields = typeIds.length
@@ -353,7 +403,7 @@ export const createNodeType = createServerFn({ method: "POST" })
 	.inputValidator(
 		(data: {
 			graphId: string;
-			scope: "user" | "graph";
+			scope: "user" | "graph" | "team" | "org";
 			name: string;
 			color: string;
 			fields?: string[];
@@ -361,13 +411,30 @@ export const createNodeType = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const graph = await assertGraphOwner(data.graphId, userId);
-		if (data.scope !== "user" && data.scope !== "graph") {
-			throw new Error("Unsupported node type scope");
-		}
+		const graph = await assertGraphAccess(data.graphId, userId);
+
 		const name = data.name.trim();
 		if (!name) throw new Error("Name is required");
-		const scopeId = data.scope === "user" ? graph.userId : data.graphId;
+
+		let scopeId: string;
+		if (data.scope === "user") {
+			scopeId = graph.userId;
+		} else if (data.scope === "graph") {
+			scopeId = data.graphId;
+		} else if (data.scope === "team") {
+			if (!graph.teamId) throw new Error("Graph is not team-owned");
+			scopeId = graph.teamId;
+		} else if (data.scope === "org") {
+			if (!graph.teamId) throw new Error("Graph is not team-owned");
+			const [graphTeam] = await db
+				.select()
+				.from(authSchema.team)
+				.where(eq(authSchema.team.id, graph.teamId));
+			if (!graphTeam) throw new Error("Team not found");
+			scopeId = graphTeam.organizationId;
+		} else {
+			throw new Error("Unsupported node type scope");
+		}
 
 		const id = crypto.randomUUID();
 		await db.insert(nodeTypes).values({
@@ -416,10 +483,56 @@ export const renameNodeType = createServerFn({ method: "POST" })
 					.update(nodes)
 					.set({ nodeType: set.name })
 					.where(
-						and(eq(nodes.graphId, type.scopeId), eq(nodes.nodeType, type.name)),
+						and(
+							eq(nodes.graphId, type.scopeId),
+							eq(nodes.nodeType, type.name),
+						),
 					);
+			} else if (type.scope === "team") {
+				// rename across all graphs in the team
+				const teamGraphs = await db
+					.select({ id: graphs.id })
+					.from(graphs)
+					.where(eq(graphs.teamId, type.scopeId));
+				const graphIds = teamGraphs.map((g) => g.id);
+				if (graphIds.length) {
+					await db
+						.update(nodes)
+						.set({ nodeType: set.name })
+						.where(
+							and(
+								inArray(nodes.graphId, graphIds),
+								eq(nodes.nodeType, type.name),
+							),
+						);
+				}
+			} else if (type.scope === "org") {
+				// rename across all graphs in all teams of the org
+				const orgTeams = await db
+					.select({ id: authSchema.team.id })
+					.from(authSchema.team)
+					.where(eq(authSchema.team.organizationId, type.scopeId));
+				const teamIds = orgTeams.map((t) => t.id);
+				if (teamIds.length) {
+					const orgGraphs = await db
+						.select({ id: graphs.id })
+						.from(graphs)
+						.where(inArray(graphs.teamId, teamIds));
+					const graphIds = orgGraphs.map((g) => g.id);
+					if (graphIds.length) {
+						await db
+							.update(nodes)
+							.set({ nodeType: set.name })
+							.where(
+								and(
+									inArray(nodes.graphId, graphIds),
+									eq(nodes.nodeType, type.name),
+								),
+							);
+					}
+				}
 			} else {
-				// user-scope: rename across all graphs the user owns.
+				// user-scope: rename across all graphs the user owns
 				const owned = await db
 					.select({ id: graphs.id })
 					.from(graphs)
@@ -446,8 +559,6 @@ export const deleteNodeType = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		await requireOwnedNodeType(data.id, userId);
-		// node_type text on nodes is left untouched; unknown names fall back to
-		// the default color gracefully.
 		await db.delete(nodeTypes).where(eq(nodeTypes.id, data.id));
 		return { success: true };
 	});
@@ -489,8 +600,7 @@ export const deleteNodeTypeField = createServerFn({ method: "POST" })
 	});
 
 // Assign a type to a node and add the type's template metadata keys (empty,
-// never overwriting existing values). Replaces the plain updateNodeType for the
-// canvas so assigning a type also seeds its metadata fields.
+// never overwriting existing values). Precedence: graph > team > org > user.
 export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; nodeType: string | null }) => data)
 	.handler(async ({ data }) => {
@@ -501,7 +611,6 @@ export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 
 		if (!data.nodeType) return { success: true, addedKeys: [] as string[] };
 
-		// Find the node's graph to resolve which types apply.
 		const [node] = await db.select().from(nodes).where(eq(nodes.id, data.id));
 		if (!node) return { success: true, addedKeys: [] as string[] };
 		const [graph] = await db
@@ -510,27 +619,49 @@ export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 			.where(eq(graphs.id, node.graphId));
 		if (!graph) return { success: true, addedKeys: [] as string[] };
 
-		// Resolve the applicable type by name (graph-scope takes precedence over
-		// user-scope when names collide).
+		// Build applicable type conditions: graph > team > org > user
+		const conditions: ReturnType<typeof and>[] = [
+			and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
+			and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, node.graphId)),
+		];
+
+		if (graph.teamId) {
+			const [graphTeam] = await db
+				.select()
+				.from(authSchema.team)
+				.where(eq(authSchema.team.id, graph.teamId));
+			if (graphTeam) {
+				conditions.push(
+					and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
+				);
+				conditions.push(
+					and(
+						eq(nodeTypes.scope, "org"),
+						eq(nodeTypes.scopeId, graphTeam.organizationId),
+					),
+				);
+			}
+		}
+
 		const matches = await db
 			.select()
 			.from(nodeTypes)
 			.where(
 				and(
 					eq(nodeTypes.name, data.nodeType),
-					or(
-						and(
-							eq(nodeTypes.scope, "user"),
-							eq(nodeTypes.scopeId, graph.userId),
-						),
-						and(
-							eq(nodeTypes.scope, "graph"),
-							eq(nodeTypes.scopeId, node.graphId),
-						),
-					),
+					or(...(conditions as Parameters<typeof or>)),
 				),
 			);
-		const type = matches.find((t) => t.scope === "graph") ?? matches[0];
+
+		// graph > team > org > user precedence
+		const scopePriority = { graph: 0, team: 1, org: 2, user: 3 } as Record<
+			string,
+			number
+		>;
+		const type = matches.sort(
+			(a, b) =>
+				(scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
+		)[0];
 		if (!type) return { success: true, addedKeys: [] as string[] };
 
 		const fields = await db

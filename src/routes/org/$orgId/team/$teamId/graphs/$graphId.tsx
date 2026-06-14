@@ -1,18 +1,33 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
 import { lazy, Suspense } from "react";
+import { getSession } from "#/lib/graph-auth";
 import {
 	getGraph,
 	listEdges,
 	listNodes,
 	listNodeTypesForGraph,
 } from "#/lib/graph-server-fns";
+import { setActiveOrganization, setActiveTeam } from "#/lib/org-server-fns";
 
 const GraphCanvas = lazy(() => import("#/components/graph/GraphCanvas"));
 
-export const Route = createFileRoute("/graphs/$graphId")({
-	component: GraphPage,
+export const Route = createFileRoute(
+	"/org/$orgId/team/$teamId/graphs/$graphId",
+)({
+	component: TeamGraphPage,
+	beforeLoad: async () => {
+		const session = await getSession();
+		if (!session) {
+			throw redirect({ to: "/login" });
+		}
+	},
 	loader: async ({ params }) => {
+		await Promise.all([
+			setActiveOrganization({ data: { orgId: params.orgId } }).catch(() => {}),
+			setActiveTeam({ data: { teamId: params.teamId } }).catch(() => {}),
+		]);
+
 		const [graph, nodeList, edgeList, nodeTypeList] = await Promise.all([
 			getGraph({ data: { id: params.graphId } }),
 			listNodes({ data: { graphId: params.graphId } }),
@@ -40,12 +55,14 @@ export const Route = createFileRoute("/graphs/$graphId")({
 			initialNodes,
 			initialEdges,
 			initialNodeTypes: nodeTypeList,
+			orgId: params.orgId,
+			teamId: params.teamId,
 		};
 	},
 });
 
-function GraphPage() {
-	const { graph, initialNodes, initialEdges, initialNodeTypes } =
+function TeamGraphPage() {
+	const { graph, initialNodes, initialEdges, initialNodeTypes, orgId, teamId } =
 		Route.useLoaderData();
 
 	return (
@@ -61,8 +78,11 @@ function GraphPage() {
 				initialNodes={initialNodes}
 				initialEdges={initialEdges}
 				initialNodeTypes={initialNodeTypes}
-				backHref="/graphs"
+				backHref={`/org/${orgId}/team/${teamId}/graphs`}
+				orgId={orgId}
+				teamId={teamId}
 			/>
 		</Suspense>
 	);
 }
+

@@ -1,0 +1,133 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { z } from "zod";
+import { auth } from "#/lib/auth";
+import { requireUserId } from "#/lib/graph-auth";
+
+export const listOrgs = createServerFn({ method: "GET" }).handler(async () => {
+	await requireUserId();
+	const request = getRequest();
+	return auth.api.listOrganizations({ headers: request.headers });
+});
+
+export const createOrg = createServerFn({ method: "POST" })
+	.inputValidator(
+		z.object({ name: z.string().min(1), slug: z.string().min(1) }),
+	)
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.createOrganization({
+			headers: request.headers,
+			body: { name: data.name, slug: data.slug },
+		});
+	});
+
+export const listTeams = createServerFn({ method: "GET" })
+	.inputValidator(z.object({ orgId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.listOrganizationTeams({
+			headers: request.headers,
+			query: { organizationId: data.orgId },
+		});
+	});
+
+export const setActiveOrganization = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ orgId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.setActiveOrganization({
+			headers: request.headers,
+			body: { organizationId: data.orgId },
+		});
+	});
+
+export const setActiveTeam = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ teamId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.setActiveTeam({
+			headers: request.headers,
+			body: { teamId: data.teamId },
+		});
+	});
+
+export const createTeam = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ orgId: z.string(), name: z.string().min(1) }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.createTeam({
+			headers: request.headers,
+			body: { organizationId: data.orgId, name: data.name },
+		});
+	});
+
+export const listMembers = createServerFn({ method: "GET" })
+	.inputValidator(z.object({ orgId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.getFullOrganization({
+			headers: request.headers,
+			query: { organizationId: data.orgId },
+		});
+	});
+
+export const inviteMember = createServerFn({ method: "POST" })
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			email: z.string().email(),
+			role: z.enum(["member", "admin", "owner"]),
+		}),
+	)
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.createInvitation({
+			headers: request.headers,
+			body: {
+				organizationId: data.orgId,
+				email: data.email,
+				role: data.role,
+			},
+		});
+	});
+
+export const getInvitation = createServerFn({ method: "GET" })
+	.inputValidator(z.object({ invitationId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.getInvitation({
+			headers: request.headers,
+			query: { id: data.invitationId },
+		});
+	});
+
+export const acceptInvitation = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ invitationId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.acceptInvitation({
+			headers: request.headers,
+			body: { invitationId: data.invitationId },
+		});
+	});
+
+export const rejectInvitation = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ invitationId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const request = getRequest();
+		return auth.api.rejectInvitation({
+			headers: request.headers,
+			body: { invitationId: data.invitationId },
+		});
+	});

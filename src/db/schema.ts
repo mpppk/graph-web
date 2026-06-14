@@ -10,6 +10,7 @@ import {
 export const graphs = sqliteTable("graphs", {
 	id: text("id").primaryKey(),
 	userId: text("user_id").notNull(),
+	teamId: text("team_id"),
 	name: text("name").notNull(),
 	description: text("description").notNull().default(""),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
