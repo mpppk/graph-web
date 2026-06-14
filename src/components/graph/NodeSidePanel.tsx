@@ -15,7 +15,7 @@ import {
 	listNodeMetadata,
 	upsertNodeMetadata,
 } from "#/lib/graph-server-fns";
-import { PREDEFINED_NODE_TYPES } from "./constants";
+import { useNodeTypes } from "./NodeTypeContext";
 
 export function NodeSidePanel({
 	nodeId,
@@ -32,6 +32,7 @@ export function NodeSidePanel({
 	onUpdateNodeType: (nodeId: string, nodeType: string | null) => void;
 	onUpdateNodeLabel: (nodeId: string, label: string) => void;
 }) {
+	const { typeList } = useNodeTypes();
 	const qc = useQueryClient();
 	const node = nodes.find((n) => n.id === nodeId);
 	const label = node ? (node.data.label as string) : "";
@@ -174,9 +175,9 @@ export function NodeSidePanel({
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="__none__">なし</SelectItem>
-							{PREDEFINED_NODE_TYPES.map((t) => (
-								<SelectItem key={t} value={t}>
-									{t}
+							{[...new Set(typeList.map((t) => t.name))].map((name) => (
+								<SelectItem key={name} value={name}>
+									{name}
 								</SelectItem>
 							))}
 						</SelectContent>

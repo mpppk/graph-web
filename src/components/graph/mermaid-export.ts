@@ -1,6 +1,5 @@
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
 import { getContrastTextColor } from "#/lib/utils";
-import { NODE_TYPE_COLORS } from "./constants";
 
 function escapeMermaidLabel(text: string): string {
 	return text.replace(/"/g, "#quot;").replace(/\|/g, "#124;");
@@ -9,6 +8,7 @@ function escapeMermaidLabel(text: string): string {
 export function generateMermaidDiagram(
 	nodes: RFNode[],
 	edges: RFEdge[],
+	colorMap: Record<string, string> = {},
 ): string {
 	const idMap = new Map<string, string>();
 	for (let i = 0; i < nodes.length; i++) {
@@ -36,21 +36,29 @@ export function generateMermaidDiagram(
 		...new Set(
 			nodes
 				.map((n) => n.data.nodeType as string | null | undefined)
-				.filter((t): t is string => !!t && t in NODE_TYPE_COLORS),
+				.filter((t): t is string => !!t && t in colorMap),
 		),
 	];
 
+	// User-defined type names may contain spaces/Unicode, which aren't valid
+	// Mermaid classDef identifiers — map each to a safe alphanumeric class id.
+	const classIdMap = new Map<string, string>(
+		usedTypes.map((t, i) => [t, `type_${i}`]),
+	);
+
 	const classDefLines = usedTypes.map((t) => {
-		const fill = NODE_TYPE_COLORS[t];
-		return `  classDef ${t} fill:${fill},stroke:none,color:${getContrastTextColor(fill)}`;
+		const fill = colorMap[t];
+		const cls = classIdMap.get(t) ?? `type_0`;
+		return `  classDef ${cls} fill:${fill},stroke:none,color:${getContrastTextColor(fill)}`;
 	});
 
 	const classAssignLines = usedTypes.flatMap((t) => {
+		const cls = classIdMap.get(t) ?? `type_0`;
 		const matchingIds = nodes
 			.filter((n) => n.data.nodeType === t)
 			.map((n) => idMap.get(n.id) ?? n.id)
 			.join(",");
-		return matchingIds ? [`  class ${matchingIds} ${t}`] : [];
+		return matchingIds ? [`  class ${matchingIds} ${cls}`] : [];
 	});
 
 	return [

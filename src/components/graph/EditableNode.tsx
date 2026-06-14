@@ -3,17 +3,16 @@ import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
 import { getContrastTextColor } from "#/lib/utils";
-import { NODE_TYPE_COLORS } from "./constants";
+import { useNodeTypes } from "./NodeTypeContext";
 
 export function EditableNode({ id, data, selected }: NodeProps) {
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState(data.label as string);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateNodeData } = useReactFlow();
+	const { colorMap } = useNodeTypes();
 	const nodeType = data.nodeType as string | null | undefined;
-	const bgColor = nodeType
-		? (NODE_TYPE_COLORS[nodeType] ?? "#ffffff")
-		: "#ffffff";
+	const bgColor = nodeType ? (colorMap[nodeType] ?? "#ffffff") : "#ffffff";
 	const textColor = getContrastTextColor(bgColor);
 	const placeholderClass =
 		textColor === "#ffffff" ? "placeholder-white/60" : "placeholder-black/40";

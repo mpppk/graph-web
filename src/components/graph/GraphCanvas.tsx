@@ -1,5 +1,5 @@
 import "@xyflow/react/dist/style.css";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
 	Background,
@@ -22,10 +22,12 @@ import {
 	createNode,
 	deleteEdge,
 	deleteNode,
+	listNodeTypesForGraph,
+	type NodeTypeWithFields,
+	setNodeTypeWithTemplate,
 	updateEdgeLabel,
 	updateNodeLabel,
 	updateNodePosition,
-	updateNodeType,
 } from "#/lib/graph-server-fns";
 import {
 	DEFAULT_LAYOUT_ALGORITHM,
@@ -38,6 +40,8 @@ import { EditableNode } from "./EditableNode";
 import { computeElkLayout } from "./elk-layout";
 import { generateMermaidDiagram } from "./mermaid-export";
 import { NodeSidePanel } from "./NodeSidePanel";
+import { buildColorMap, NodeTypeProvider } from "./NodeTypeContext";
+import { NodeTypeManagerPanel } from "./NodeTypeManagerPanel";
 
 type Graph = typeof graphs.$inferSelect;
 
@@ -67,17 +71,27 @@ function GraphCanvasInner({
 	graph,
 	initialNodes,
 	initialEdges,
+	initialNodeTypes,
 }: {
 	graph: Graph;
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
+	initialNodeTypes: NodeTypeWithFields[];
 }) {
 	const navigate = useNavigate();
+	const qc = useQueryClient();
 	const colorMode = useColorMode();
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+	const [typeManagerOpen, setTypeManagerOpen] = useState(false);
+
+	const { data: nodeTypeList = [] } = useQuery({
+		queryKey: ["nodeTypes", graph.id],
+		queryFn: () => listNodeTypesForGraph({ data: { graphId: graph.id } }),
+		initialData: initialNodeTypes,
+	});
 	const [selectedAlgo, setSelectedAlgo] = useState<LayoutAlgorithm>(
 		DEFAULT_LAYOUT_ALGORITHM,
 	);
@@ -182,7 +196,11 @@ function GraphCanvasInner({
 
 	const updateNodeTypeMutation = useMutation({
 		mutationFn: ({ id, nodeType }: { id: string; nodeType: string | null }) =>
-			updateNodeType({ data: { id, nodeType } }),
+			setNodeTypeWithTemplate({ data: { id, nodeType } }),
+		onSuccess: (_res, vars) => {
+			// Template metadata keys may have been added — refresh the panel.
+			qc.invalidateQueries({ queryKey: ["metadata", vars.id] });
+		},
 	});
 
 	const handleUpdateNodeType = useCallback(
@@ -326,146 +344,166 @@ function GraphCanvasInner({
 	);
 
 	const handleCopyMermaid = useCallback(() => {
-		const diagram = generateMermaidDiagram(nodes, edges);
+		const diagram = generateMermaidDiagram(
+			nodes,
+			edges,
+			buildColorMap(nodeTypeList),
+		);
 		navigator.clipboard.writeText(diagram).then(() => {
 			setMermaidCopied(true);
 			setTimeout(() => setMermaidCopied(false), 2000);
 		});
-	}, [nodes, edges]);
+	}, [nodes, edges, nodeTypeList]);
 
 	return (
-		<div className="flex h-screen flex-col">
-			<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					onClick={() => navigate({ to: "/graphs" })}
-				>
-					← Back
-				</Button>
-				<h1 className="min-w-0 flex-1 truncate font-semibold text-foreground">
-					{graph.name}
-				</h1>
-				{graph.description && (
-					<span className="min-w-0 truncate text-sm text-muted-foreground">
-						{graph.description}
-					</span>
-				)}
-				<div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:ml-auto">
+		<NodeTypeProvider typeList={nodeTypeList}>
+			<div className="flex h-screen flex-col">
+				<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						size="sm"
-						onClick={handleCopyMermaid}
+						onClick={() => navigate({ to: "/graphs" })}
 					>
-						{mermaidCopied ? "Copied!" : "Copy as Mermaid"}
+						← Back
 					</Button>
-					<div ref={layoutMenuRef} className="relative flex">
+					<h1 className="min-w-0 flex-1 truncate font-semibold text-foreground">
+						{graph.name}
+					</h1>
+					{graph.description && (
+						<span className="min-w-0 truncate text-sm text-muted-foreground">
+							{graph.description}
+						</span>
+					)}
+					<div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:ml-auto">
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
-							onClick={() => runLayout(selectedAlgo)}
-							className="rounded-r-none"
+							onClick={handleCopyMermaid}
 						>
-							⤢ 再配置: {selectedAlgo.label}
+							{mermaidCopied ? "Copied!" : "Copy as Mermaid"}
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
-							aria-label="レイアウトアルゴリズムを選択"
-							onClick={() => setLayoutMenuOpen((v) => !v)}
-							className="rounded-l-none border-l-0 px-2"
+							onClick={() => setTypeManagerOpen((v) => !v)}
 						>
-							▼
+							タイプ管理
 						</Button>
-						{layoutMenuOpen && (
-							<ul className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border bg-popover py-1 text-popover-foreground shadow-md">
-								{LAYOUT_ALGORITHMS.map((algo) => (
-									<li key={algo.id}>
-										<button
-											type="button"
-											onClick={() => {
-												setSelectedAlgo(algo);
-												setLayoutMenuOpen(false);
-												runLayout(algo);
-											}}
-											className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-												algo.id === selectedAlgo.id
-													? "bg-muted font-medium"
-													: ""
-											}`}
-										>
-											{algo.label}
-										</button>
-									</li>
-								))}
-							</ul>
-						)}
+						<div ref={layoutMenuRef} className="relative flex">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => runLayout(selectedAlgo)}
+								className="rounded-r-none"
+							>
+								⤢ 再配置: {selectedAlgo.label}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								aria-label="レイアウトアルゴリズムを選択"
+								onClick={() => setLayoutMenuOpen((v) => !v)}
+								className="rounded-l-none border-l-0 px-2"
+							>
+								▼
+							</Button>
+							{layoutMenuOpen && (
+								<ul className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border bg-popover py-1 text-popover-foreground shadow-md">
+									{LAYOUT_ALGORITHMS.map((algo) => (
+										<li key={algo.id}>
+											<button
+												type="button"
+												onClick={() => {
+													setSelectedAlgo(algo);
+													setLayoutMenuOpen(false);
+													runLayout(algo);
+												}}
+												className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+													algo.id === selectedAlgo.id
+														? "bg-muted font-medium"
+														: ""
+												}`}
+											>
+												{algo.label}
+											</button>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
+						<Button
+							type="button"
+							size="sm"
+							disabled={createNodeMutation.isPending}
+							onClick={() => createNodeMutation.mutate("New Node")}
+						>
+							+ Add Node
+						</Button>
 					</div>
-					<Button
-						type="button"
-						size="sm"
-						disabled={createNodeMutation.isPending}
-						onClick={() => createNodeMutation.mutate("New Node")}
-					>
-						+ Add Node
-					</Button>
-				</div>
-			</header>
+				</header>
 
-			<div className="flex flex-1 overflow-hidden">
-				<div className="flex-1 overflow-hidden">
-					<ReactFlow
-						nodes={nodes}
-						edges={edges}
-						nodeTypes={nodeTypes}
-						edgeTypes={edgeTypes}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
-						onConnect={onConnect}
-						onNodeDragStop={onNodeDragStop}
-						onNodeClick={onNodeClick}
-						onEdgeClick={onEdgeClick}
-						onPaneClick={onPaneClick}
-						onNodesDelete={onNodesDelete}
-						onEdgesDelete={onEdgesDelete}
-						deleteKeyCode="Delete"
-						fitView
-						colorMode={colorMode}
-						onInit={(instance) => {
-							rfInstanceRef.current = instance;
-						}}
-					>
-						<Background />
-						<Controls />
-						<MiniMap />
-					</ReactFlow>
-				</div>
+				<div className="flex flex-1 overflow-hidden">
+					<div className="flex-1 overflow-hidden">
+						<ReactFlow
+							nodes={nodes}
+							edges={edges}
+							nodeTypes={nodeTypes}
+							edgeTypes={edgeTypes}
+							onNodesChange={onNodesChange}
+							onEdgesChange={onEdgesChange}
+							onConnect={onConnect}
+							onNodeDragStop={onNodeDragStop}
+							onNodeClick={onNodeClick}
+							onEdgeClick={onEdgeClick}
+							onPaneClick={onPaneClick}
+							onNodesDelete={onNodesDelete}
+							onEdgesDelete={onEdgesDelete}
+							deleteKeyCode="Delete"
+							fitView
+							colorMode={colorMode}
+							onInit={(instance) => {
+								rfInstanceRef.current = instance;
+							}}
+						>
+							<Background />
+							<Controls />
+							<MiniMap />
+						</ReactFlow>
+					</div>
 
-				{selectedNodeId && (
-					<NodeSidePanel
-						nodeId={selectedNodeId}
-						nodes={nodes}
-						onClose={() => setSelectedNodeId(null)}
-						onDeleteNode={handleDeleteNodeFromPanel}
-						onUpdateNodeType={handleUpdateNodeType}
-						onUpdateNodeLabel={handleUpdateNodeLabel}
-					/>
-				)}
-				{selectedEdgeId && (
-					<EdgeSidePanel
-						edgeId={selectedEdgeId}
-						edges={edges}
-						onClose={() => setSelectedEdgeId(null)}
-						onDeleteEdge={handleDeleteEdgeFromPanel}
-						onUpdateLabel={handleUpdateEdgeLabel}
-					/>
-				)}
+					{selectedNodeId && (
+						<NodeSidePanel
+							nodeId={selectedNodeId}
+							nodes={nodes}
+							onClose={() => setSelectedNodeId(null)}
+							onDeleteNode={handleDeleteNodeFromPanel}
+							onUpdateNodeType={handleUpdateNodeType}
+							onUpdateNodeLabel={handleUpdateNodeLabel}
+						/>
+					)}
+					{selectedEdgeId && (
+						<EdgeSidePanel
+							edgeId={selectedEdgeId}
+							edges={edges}
+							onClose={() => setSelectedEdgeId(null)}
+							onDeleteEdge={handleDeleteEdgeFromPanel}
+							onUpdateLabel={handleUpdateEdgeLabel}
+						/>
+					)}
+					{typeManagerOpen && (
+						<NodeTypeManagerPanel
+							graphId={graph.id}
+							onClose={() => setTypeManagerOpen(false)}
+						/>
+					)}
+				</div>
 			</div>
-		</div>
+		</NodeTypeProvider>
 	);
 }
 
@@ -473,6 +511,7 @@ export default function GraphCanvas(props: {
 	graph: Graph;
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
+	initialNodeTypes: NodeTypeWithFields[];
 }) {
 	return <GraphCanvasInner {...props} />;
 }

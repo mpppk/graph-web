@@ -1,13 +1,3 @@
-export const NODE_TYPE_COLORS: Record<string, string> = {
-	KPI: "#3b82f6",
-	Epic: "#8b5cf6",
-	Feature: "#22c55e",
-	Opportunity: "#f97316",
-	Solution: "#14b8a6",
-};
-
-export const PREDEFINED_NODE_TYPES = Object.keys(NODE_TYPE_COLORS);
-
 export type LayoutAlgorithm = {
 	id: string;
 	label: string;

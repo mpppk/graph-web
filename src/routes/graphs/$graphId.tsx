@@ -1,17 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
 import { lazy, Suspense } from "react";
-import { getGraph, listEdges, listNodes } from "#/lib/graph-server-fns";
+import {
+	getGraph,
+	listEdges,
+	listNodes,
+	listNodeTypesForGraph,
+} from "#/lib/graph-server-fns";
 
 const GraphCanvas = lazy(() => import("#/components/graph/GraphCanvas"));
 
 export const Route = createFileRoute("/graphs/$graphId")({
 	component: GraphPage,
 	loader: async ({ params }) => {
-		const [graph, nodeList, edgeList] = await Promise.all([
+		const [graph, nodeList, edgeList, nodeTypeList] = await Promise.all([
 			getGraph({ data: { id: params.graphId } }),
 			listNodes({ data: { graphId: params.graphId } }),
 			listEdges({ data: { graphId: params.graphId } }),
+			listNodeTypesForGraph({ data: { graphId: params.graphId } }),
 		]);
 
 		const initialNodes: RFNode[] = nodeList.map((n) => ({
@@ -29,12 +35,18 @@ export const Route = createFileRoute("/graphs/$graphId")({
 			data: { label: e.label ?? "" },
 		}));
 
-		return { graph, initialNodes, initialEdges };
+		return {
+			graph,
+			initialNodes,
+			initialEdges,
+			initialNodeTypes: nodeTypeList,
+		};
 	},
 });
 
 function GraphPage() {
-	const { graph, initialNodes, initialEdges } = Route.useLoaderData();
+	const { graph, initialNodes, initialEdges, initialNodeTypes } =
+		Route.useLoaderData();
 
 	return (
 		<Suspense
@@ -48,6 +60,7 @@ function GraphPage() {
 				graph={graph}
 				initialNodes={initialNodes}
 				initialEdges={initialEdges}
+				initialNodeTypes={initialNodeTypes}
 			/>
 		</Suspense>
 	);
