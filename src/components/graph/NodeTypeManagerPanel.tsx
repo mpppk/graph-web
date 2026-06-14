@@ -158,9 +158,7 @@ export function NodeTypeManagerPanel({
 							{teamId && (
 								<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
 							)}
-							{orgId && (
-								<SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>
-							)}
+							{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
 						</SelectContent>
 					</Select>
 					<Input

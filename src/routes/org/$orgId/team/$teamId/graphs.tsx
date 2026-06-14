@@ -67,8 +67,7 @@ function TeamGraphsPage() {
 	const singleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const createGraphMutation = useMutation({
-		mutationFn: (name: string) =>
-			createGraph({ data: { name, teamId } }),
+		mutationFn: (name: string) => createGraph({ data: { name, teamId } }),
 		onSuccess: (newGraph) => {
 			qc.invalidateQueries({ queryKey: ["team-graphs", teamId] });
 			if (newGraph) {

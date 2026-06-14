@@ -85,4 +85,3 @@ function TeamGraphPage() {
 		</Suspense>
 	);
 }
-

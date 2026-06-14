@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
-import { db } from "#/db/index";
 import * as authSchema from "#/db/auth-schema";
+import { db } from "#/db/index";
 import {
 	edges,
 	graphs,
@@ -28,10 +28,7 @@ const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 // Team-owned graphs: user must be an org member.
 // Legacy user-owned graphs: user must be the owner.
 async function assertGraphAccess(graphId: string, userId: string) {
-	const [graph] = await db
-		.select()
-		.from(graphs)
-		.where(eq(graphs.id, graphId));
+	const [graph] = await db.select().from(graphs).where(eq(graphs.id, graphId));
 	if (!graph) throw new Error("Graph not found");
 
 	if (graph.teamId) {
@@ -114,10 +111,7 @@ export const listGraphs = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		if (data?.teamId) {
-			return db
-				.select()
-				.from(graphs)
-				.where(eq(graphs.teamId, data.teamId));
+			return db.select().from(graphs).where(eq(graphs.teamId, data.teamId));
 		}
 		// Legacy: personal graphs with no team
 		return db
@@ -176,9 +170,7 @@ export const deleteGraph = createServerFn({ method: "POST" })
 		// graph-scope node types have no FK so must be cleaned up explicitly (fields cascade).
 		await db
 			.delete(nodeTypes)
-			.where(
-				and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, data.id)),
-			);
+			.where(and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, data.id)));
 		return { success: true };
 	});
 
@@ -483,10 +475,7 @@ export const renameNodeType = createServerFn({ method: "POST" })
 					.update(nodes)
 					.set({ nodeType: set.name })
 					.where(
-						and(
-							eq(nodes.graphId, type.scopeId),
-							eq(nodes.nodeType, type.name),
-						),
+						and(eq(nodes.graphId, type.scopeId), eq(nodes.nodeType, type.name)),
 					);
 			} else if (type.scope === "team") {
 				// rename across all graphs in the team
@@ -659,8 +648,7 @@ export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 			number
 		>;
 		const type = matches.sort(
-			(a, b) =>
-				(scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
+			(a, b) => (scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
 		)[0];
 		if (!type) return { success: true, addedKeys: [] as string[] };
 

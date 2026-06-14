@@ -369,7 +369,9 @@ function GraphCanvasInner({
 						type="button"
 						variant="ghost"
 						size="sm"
-						onClick={() => navigate({ to: backHref } as Parameters<typeof navigate>[0])}
+						onClick={() =>
+							navigate({ to: backHref } as Parameters<typeof navigate>[0])
+						}
 					>
 						← Back
 					</Button>

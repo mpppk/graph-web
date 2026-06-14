@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import BetterAuthHeader from "../integrations/better-auth/header-user.tsx";
 import { authClient } from "#/lib/auth-client";
+import BetterAuthHeader from "../integrations/better-auth/header-user.tsx";
 
 export default function Header() {
 	const { data: session } = authClient.useSession();
