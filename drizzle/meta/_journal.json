@@ -15,6 +15,13 @@
       "when": 1780763138759,
       "tag": "0001_living_thing",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781425185184,
+      "tag": "0002_curious_node_types",
+      "breakpoints": true
     }
   ]
 }
