@@ -43,7 +43,7 @@ function GraphsPage() {
 	}
 
 	return (
-		<div className="min-h-screen">
+		<div className="min-h-full">
 			<main className="mx-auto max-w-4xl px-6 py-8">
 				<GraphList initialGraphs={loaderData} />
 			</main>

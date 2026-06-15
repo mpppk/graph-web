@@ -68,7 +68,7 @@ function TeamGraphPage() {
 	return (
 		<Suspense
 			fallback={
-				<div className="flex h-screen items-center justify-center text-muted-foreground">
+				<div className="flex h-full items-center justify-center text-muted-foreground">
 					Loading canvas…
 				</div>
 			}
