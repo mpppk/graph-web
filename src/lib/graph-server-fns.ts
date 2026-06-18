@@ -258,11 +258,16 @@ export const pasteNodes = createServerFn({ method: "POST" })
 		for (const n of data.nodes) {
 			nodeIdMap.set(n.tempId, crypto.randomUUID());
 		}
+		const getNodeId = (tempId: string) => {
+			const id = nodeIdMap.get(tempId);
+			if (!id) throw new Error(`Unknown tempId: ${tempId}`);
+			return id;
+		};
 
 		if (data.nodes.length > 0) {
 			await db.insert(nodes).values(
 				data.nodes.map((n) => ({
-					id: nodeIdMap.get(n.tempId)!,
+					id: getNodeId(n.tempId),
 					graphId: data.graphId,
 					label: n.label,
 					x: n.x,
@@ -275,7 +280,7 @@ export const pasteNodes = createServerFn({ method: "POST" })
 		const allMetadata = data.nodes.flatMap((n) =>
 			n.metadata.map((m) => ({
 				id: crypto.randomUUID(),
-				nodeId: nodeIdMap.get(n.tempId)!,
+				nodeId: getNodeId(n.tempId),
 				key: m.key,
 				value: m.value,
 			})),
@@ -293,8 +298,8 @@ export const pasteNodes = createServerFn({ method: "POST" })
 		if (data.edges.length > 0) {
 			const edgeValues = data.edges.map((e) => {
 				const id = crypto.randomUUID();
-				const sourceNodeId = nodeIdMap.get(e.sourceTempId)!;
-				const targetNodeId = nodeIdMap.get(e.targetTempId)!;
+				const sourceNodeId = getNodeId(e.sourceTempId);
+				const targetNodeId = getNodeId(e.targetTempId);
 				createdEdges.push({ id, sourceNodeId, targetNodeId, label: e.label });
 				return {
 					id,

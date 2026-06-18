@@ -488,7 +488,10 @@ function GraphCanvasInner({
 							});
 							return { nodeId: node.id, metadata: meta };
 						} catch {
-							return { nodeId: node.id, metadata: [] as Array<{ key: string; value: string }> };
+							return {
+								nodeId: node.id,
+								metadata: [] as Array<{ key: string; value: string }>,
+							};
 						}
 					}),
 				).then((metadataResults) => {
@@ -550,8 +553,8 @@ function GraphCanvasInner({
 							tempIdMap.has(e.targetOriginalId),
 					)
 					.map((e) => ({
-						sourceTempId: tempIdMap.get(e.sourceOriginalId)!,
-						targetTempId: tempIdMap.get(e.targetOriginalId)!,
+						sourceTempId: tempIdMap.get(e.sourceOriginalId) ?? "",
+						targetTempId: tempIdMap.get(e.targetOriginalId) ?? "",
 						label: e.label,
 					}));
 
