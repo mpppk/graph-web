@@ -22,8 +22,10 @@ import {
 	createNode,
 	deleteEdge,
 	deleteNode,
+	listNodeMetadata,
 	listNodeTypesForGraph,
 	type NodeTypeWithFields,
+	pasteNodes,
 	setNodeTypeWithTemplate,
 	updateEdgeLabel,
 	updateNodeLabel,
@@ -63,6 +65,26 @@ function useColorMode(): "dark" | "light" {
 	}, []);
 	return colorMode;
 }
+
+type ClipboardData = {
+	centroidX: number;
+	centroidY: number;
+	nodes: Array<{
+		originalId: string;
+		label: string;
+		nodeType: string | null;
+		relativeX: number;
+		relativeY: number;
+		metadata: Array<{ key: string; value: string }>;
+	}>;
+	edges: Array<{
+		sourceOriginalId: string;
+		targetOriginalId: string;
+		label: string;
+	}>;
+};
+
+const PASTE_OFFSET = 50;
 
 const nodeTypes = { default: EditableNode };
 const edgeTypes = { editable: EditableEdge };
@@ -105,6 +127,7 @@ function GraphCanvasInner({
 	const layoutMenuRef = useRef<HTMLDivElement | null>(null);
 	const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 	const [mermaidCopied, setMermaidCopied] = useState(false);
+	const clipboardRef = useRef<ClipboardData | null>(null);
 
 	useEffect(() => {
 		if (!layoutMenuOpen) return;
@@ -200,6 +223,52 @@ function GraphCanvasInner({
 		mutationFn: (id: string) => deleteEdge({ data: { id } }),
 	});
 
+	const pasteNodesMutation = useMutation({
+		mutationFn: (payload: {
+			graphId: string;
+			nodes: Array<{
+				tempId: string;
+				label: string;
+				x: number;
+				y: number;
+				nodeType: string | null;
+				metadata: Array<{ key: string; value: string }>;
+			}>;
+			edges: Array<{
+				sourceTempId: string;
+				targetTempId: string;
+				label: string;
+			}>;
+		}) => pasteNodes({ data: payload }),
+		onSuccess: (result, variables) => {
+			const newNodes: RFNode[] = variables.nodes.map((n) => ({
+				id: result.nodeIdMap[n.tempId],
+				type: "default" as const,
+				position: { x: n.x, y: n.y },
+				data: { label: n.label, nodeType: n.nodeType },
+				selected: true,
+			}));
+			setNodes((prev) => [
+				...prev.map((n) => ({ ...n, selected: false })),
+				...newNodes,
+			]);
+
+			const newEdges: RFEdge[] = result.edges.map((e) => ({
+				id: e.id,
+				source: e.sourceNodeId,
+				target: e.targetNodeId,
+				type: "editable",
+				data: { label: e.label },
+			}));
+			setEdges((prev) => [...prev, ...newEdges]);
+
+			if (clipboardRef.current) {
+				clipboardRef.current.centroidX += PASTE_OFFSET;
+				clipboardRef.current.centroidY += PASTE_OFFSET;
+			}
+		},
+	});
+
 	const updateNodeTypeMutation = useMutation({
 		mutationFn: ({ id, nodeType }: { id: string; nodeType: string | null }) =>
 			setNodeTypeWithTemplate({ data: { id, nodeType } }),
@@ -263,7 +332,25 @@ function GraphCanvasInner({
 		[updatePosition],
 	);
 
+	const onSelectionDragStop = useCallback(
+		(_: React.MouseEvent, selectedNodes: RFNode[]) => {
+			for (const node of selectedNodes) {
+				updatePosition.mutate({
+					id: node.id,
+					x: node.position.x,
+					y: node.position.y,
+				});
+			}
+		},
+		[updatePosition],
+	);
+
 	const onNodeClick = useCallback((_: React.MouseEvent, node: RFNode) => {
+		if (_.ctrlKey || _.metaKey) {
+			setSelectedNodeId(null);
+			setSelectedEdgeId(null);
+			return;
+		}
 		setSelectedNodeId(node.id);
 		setSelectedEdgeId(null);
 	}, []);
@@ -360,6 +447,130 @@ function GraphCanvasInner({
 			setTimeout(() => setMermaidCopied(false), 2000);
 		});
 	}, [nodes, edges, nodeTypeList]);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement;
+			if (
+				target.tagName === "INPUT" ||
+				target.tagName === "TEXTAREA" ||
+				target.isContentEditable
+			) {
+				return;
+			}
+
+			const isMod = e.ctrlKey || e.metaKey;
+
+			if (isMod && e.key === "c") {
+				const selectedNodes = nodes.filter((n) => n.selected);
+				if (selectedNodes.length === 0) return;
+
+				e.preventDefault();
+
+				const centroidX =
+					selectedNodes.reduce((sum, n) => sum + n.position.x, 0) /
+					selectedNodes.length;
+				const centroidY =
+					selectedNodes.reduce((sum, n) => sum + n.position.y, 0) /
+					selectedNodes.length;
+
+				const selectedIds = new Set(selectedNodes.map((n) => n.id));
+				const selectedEdges = edges.filter(
+					(edge) =>
+						selectedIds.has(edge.source) && selectedIds.has(edge.target),
+				);
+
+				Promise.all(
+					selectedNodes.map(async (node) => {
+						try {
+							const meta = await listNodeMetadata({
+								data: { nodeId: node.id },
+							});
+							return { nodeId: node.id, metadata: meta };
+						} catch {
+							return {
+								nodeId: node.id,
+								metadata: [] as Array<{ key: string; value: string }>,
+							};
+						}
+					}),
+				).then((metadataResults) => {
+					const metaMap = new Map(
+						metadataResults.map((r) => [r.nodeId, r.metadata]),
+					);
+
+					clipboardRef.current = {
+						centroidX,
+						centroidY,
+						nodes: selectedNodes.map((n) => ({
+							originalId: n.id,
+							label: n.data.label as string,
+							nodeType: (n.data.nodeType as string | null) ?? null,
+							relativeX: n.position.x - centroidX,
+							relativeY: n.position.y - centroidY,
+							metadata: (metaMap.get(n.id) ?? []).map((m) => ({
+								key: m.key,
+								value: m.value,
+							})),
+						})),
+						edges: selectedEdges.map((edge) => ({
+							sourceOriginalId: edge.source,
+							targetOriginalId: edge.target,
+							label: (edge.data?.label as string) ?? "",
+						})),
+					};
+				});
+
+				return;
+			}
+
+			if (isMod && e.key === "v") {
+				if (!clipboardRef.current || pasteNodesMutation.isPending) return;
+				e.preventDefault();
+
+				const clipboard = clipboardRef.current;
+				const pasteX = clipboard.centroidX + PASTE_OFFSET;
+				const pasteY = clipboard.centroidY + PASTE_OFFSET;
+
+				const tempIdMap = new Map<string, string>();
+				const nodesPayload = clipboard.nodes.map((n) => {
+					const tempId = crypto.randomUUID();
+					tempIdMap.set(n.originalId, tempId);
+					return {
+						tempId,
+						label: n.label,
+						x: pasteX + n.relativeX,
+						y: pasteY + n.relativeY,
+						nodeType: n.nodeType,
+						metadata: n.metadata,
+					};
+				});
+
+				const edgesPayload = clipboard.edges
+					.filter(
+						(e) =>
+							tempIdMap.has(e.sourceOriginalId) &&
+							tempIdMap.has(e.targetOriginalId),
+					)
+					.map((e) => ({
+						sourceTempId: tempIdMap.get(e.sourceOriginalId) ?? "",
+						targetTempId: tempIdMap.get(e.targetOriginalId) ?? "",
+						label: e.label,
+					}));
+
+				pasteNodesMutation.mutate({
+					graphId: graph.id,
+					nodes: nodesPayload,
+					edges: edgesPayload,
+				});
+
+				return;
+			}
+		};
+
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [nodes, edges, graph.id, pasteNodesMutation]);
 
 	return (
 		<NodeTypeProvider typeList={nodeTypeList}>
@@ -466,12 +677,15 @@ function GraphCanvasInner({
 							onEdgesChange={onEdgesChange}
 							onConnect={onConnect}
 							onNodeDragStop={onNodeDragStop}
+							onSelectionDragStop={onSelectionDragStop}
 							onNodeClick={onNodeClick}
 							onEdgeClick={onEdgeClick}
 							onPaneClick={onPaneClick}
 							onNodesDelete={onNodesDelete}
 							onEdgesDelete={onEdgesDelete}
 							deleteKeyCode="Delete"
+							selectionOnDrag
+							panOnDrag={[1, 2]}
 							fitView
 							colorMode={colorMode}
 							onInit={(instance) => {

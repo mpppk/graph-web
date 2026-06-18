@@ -231,6 +231,93 @@ export const deleteNode = createServerFn({ method: "POST" })
 		return { success: true };
 	});
 
+export const pasteNodes = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: {
+			graphId: string;
+			nodes: Array<{
+				tempId: string;
+				label: string;
+				x: number;
+				y: number;
+				nodeType: string | null;
+				metadata: Array<{ key: string; value: string }>;
+			}>;
+			edges: Array<{
+				sourceTempId: string;
+				targetTempId: string;
+				label: string;
+			}>;
+		}) => data,
+	)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertGraphAccess(data.graphId, userId);
+
+		const nodeIdMap = new Map<string, string>();
+		for (const n of data.nodes) {
+			nodeIdMap.set(n.tempId, crypto.randomUUID());
+		}
+		const getNodeId = (tempId: string) => {
+			const id = nodeIdMap.get(tempId);
+			if (!id) throw new Error(`Unknown tempId: ${tempId}`);
+			return id;
+		};
+
+		if (data.nodes.length > 0) {
+			await db.insert(nodes).values(
+				data.nodes.map((n) => ({
+					id: getNodeId(n.tempId),
+					graphId: data.graphId,
+					label: n.label,
+					x: n.x,
+					y: n.y,
+					nodeType: n.nodeType,
+				})),
+			);
+		}
+
+		const allMetadata = data.nodes.flatMap((n) =>
+			n.metadata.map((m) => ({
+				id: crypto.randomUUID(),
+				nodeId: getNodeId(n.tempId),
+				key: m.key,
+				value: m.value,
+			})),
+		);
+		if (allMetadata.length > 0) {
+			await db.insert(nodeMetadata).values(allMetadata);
+		}
+
+		const createdEdges: Array<{
+			id: string;
+			sourceNodeId: string;
+			targetNodeId: string;
+			label: string;
+		}> = [];
+		if (data.edges.length > 0) {
+			const edgeValues = data.edges.map((e) => {
+				const id = crypto.randomUUID();
+				const sourceNodeId = getNodeId(e.sourceTempId);
+				const targetNodeId = getNodeId(e.targetTempId);
+				createdEdges.push({ id, sourceNodeId, targetNodeId, label: e.label });
+				return {
+					id,
+					graphId: data.graphId,
+					sourceNodeId,
+					targetNodeId,
+					label: e.label,
+				};
+			});
+			await db.insert(edges).values(edgeValues);
+		}
+
+		return {
+			nodeIdMap: Object.fromEntries(nodeIdMap),
+			edges: createdEdges,
+		};
+	});
+
 // ── Edge operations ───────────────────────────────────────────────────────────
 
 export const listEdges = createServerFn({ method: "GET" })
