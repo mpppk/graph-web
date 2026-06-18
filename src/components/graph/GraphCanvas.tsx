@@ -482,10 +482,14 @@ function GraphCanvasInner({
 
 				Promise.all(
 					selectedNodes.map(async (node) => {
-						const meta = await listNodeMetadata({
-							data: { nodeId: node.id },
-						});
-						return { nodeId: node.id, metadata: meta };
+						try {
+							const meta = await listNodeMetadata({
+								data: { nodeId: node.id },
+							});
+							return { nodeId: node.id, metadata: meta };
+						} catch {
+							return { nodeId: node.id, metadata: [] as Array<{ key: string; value: string }> };
+						}
 					}),
 				).then((metadataResults) => {
 					const metaMap = new Map(
@@ -679,7 +683,6 @@ function GraphCanvasInner({
 							deleteKeyCode="Delete"
 							selectionOnDrag
 							panOnDrag={[1, 2]}
-							multiSelectionKeyCode="Meta"
 							fitView
 							colorMode={colorMode}
 							onInit={(instance) => {
