@@ -683,7 +683,7 @@ function GraphCanvasInner({
 							onPaneClick={onPaneClick}
 							onNodesDelete={onNodesDelete}
 							onEdgesDelete={onEdgesDelete}
-							deleteKeyCode="Delete"
+							deleteKeyCode={["Delete", "Backspace"]}
 							selectionOnDrag
 							panOnDrag={[1, 2]}
 							fitView
