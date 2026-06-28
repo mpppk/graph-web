@@ -14,6 +14,7 @@ import {
 	useEdgesState,
 	useNodesState,
 } from "@xyflow/react";
+import { SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { graphs } from "#/db/schema";
@@ -40,6 +41,7 @@ import { EdgeSidePanel } from "./EdgeSidePanel";
 import { EditableEdge } from "./EditableEdge";
 import { EditableNode } from "./EditableNode";
 import { computeElkLayout } from "./elk-layout";
+import { GraphCommandPalette } from "./GraphCommandPalette";
 import { generateMermaidDiagram } from "./mermaid-export";
 import { NodeSidePanel } from "./NodeSidePanel";
 import { buildColorMap, NodeTypeProvider } from "./NodeTypeContext";
@@ -123,25 +125,9 @@ function GraphCanvasInner({
 	const [selectedAlgo, setSelectedAlgo] = useState<LayoutAlgorithm>(
 		DEFAULT_LAYOUT_ALGORITHM,
 	);
-	const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
-	const layoutMenuRef = useRef<HTMLDivElement | null>(null);
+	const [paletteOpen, setPaletteOpen] = useState(false);
 	const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
-	const [mermaidCopied, setMermaidCopied] = useState(false);
 	const clipboardRef = useRef<ClipboardData | null>(null);
-
-	useEffect(() => {
-		if (!layoutMenuOpen) return;
-		const onPointerDown = (e: MouseEvent) => {
-			if (
-				layoutMenuRef.current &&
-				!layoutMenuRef.current.contains(e.target as Node)
-			) {
-				setLayoutMenuOpen(false);
-			}
-		};
-		document.addEventListener("mousedown", onPointerDown);
-		return () => document.removeEventListener("mousedown", onPointerDown);
-	}, [layoutMenuOpen]);
 
 	const updatePosition = useMutation({
 		mutationFn: ({ id, x, y }: { id: string; x: number; y: number }) =>
@@ -442,14 +428,19 @@ function GraphCanvasInner({
 			edges,
 			buildColorMap(nodeTypeList),
 		);
-		navigator.clipboard.writeText(diagram).then(() => {
-			setMermaidCopied(true);
-			setTimeout(() => setMermaidCopied(false), 2000);
-		});
+		navigator.clipboard.writeText(diagram);
 	}, [nodes, edges, nodeTypeList]);
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			const isModK =
+				(e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K");
+			if (isModK) {
+				e.preventDefault();
+				setPaletteOpen((v) => !v);
+				return;
+			}
+
 			const target = e.target as HTMLElement;
 			if (
 				target.tagName === "INPUT" ||
@@ -586,84 +577,26 @@ function GraphCanvasInner({
 					>
 						← Back
 					</Button>
-					<h1 className="min-w-0 flex-1 truncate font-semibold text-foreground">
-						{graph.name}
-					</h1>
+					<div className="flex min-w-0 items-center gap-1">
+						<h1 className="min-w-0 truncate font-semibold text-foreground">
+							{graph.name}
+						</h1>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label="コマンドパレットを開く (⌘K)"
+							title="コマンドパレットを開く (⌘K)"
+							onClick={() => setPaletteOpen(true)}
+						>
+							<SparklesIcon />
+						</Button>
+					</div>
 					{graph.description && (
-						<span className="min-w-0 truncate text-sm text-muted-foreground">
+						<span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
 							{graph.description}
 						</span>
 					)}
-					<div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:ml-auto">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleCopyMermaid}
-						>
-							{mermaidCopied ? "Copied!" : "Copy as Mermaid"}
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setTypeManagerOpen((v) => !v)}
-						>
-							タイプ管理
-						</Button>
-						<div ref={layoutMenuRef} className="relative flex">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => runLayout(selectedAlgo)}
-								className="rounded-r-none"
-							>
-								⤢ 再配置: {selectedAlgo.label}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								aria-label="レイアウトアルゴリズムを選択"
-								onClick={() => setLayoutMenuOpen((v) => !v)}
-								className="rounded-l-none border-l-0 px-2"
-							>
-								▼
-							</Button>
-							{layoutMenuOpen && (
-								<ul className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border bg-popover py-1 text-popover-foreground shadow-md">
-									{LAYOUT_ALGORITHMS.map((algo) => (
-										<li key={algo.id}>
-											<button
-												type="button"
-												onClick={() => {
-													setSelectedAlgo(algo);
-													setLayoutMenuOpen(false);
-													runLayout(algo);
-												}}
-												className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-													algo.id === selectedAlgo.id
-														? "bg-muted font-medium"
-														: ""
-												}`}
-											>
-												{algo.label}
-											</button>
-										</li>
-									))}
-								</ul>
-							)}
-						</div>
-						<Button
-							type="button"
-							size="sm"
-							disabled={createNodeMutation.isPending}
-							onClick={() => createNodeMutation.mutate("New Node")}
-						>
-							+ Add Node
-						</Button>
-					</div>
 				</header>
 
 				<div className="flex flex-1 overflow-hidden">
@@ -726,6 +659,20 @@ function GraphCanvasInner({
 						/>
 					)}
 				</div>
+
+				<GraphCommandPalette
+					open={paletteOpen}
+					onOpenChange={setPaletteOpen}
+					onCopyMermaid={handleCopyMermaid}
+					onOpenTypeManager={() => setTypeManagerOpen(true)}
+					onRunLayout={(algo) => {
+						setSelectedAlgo(algo);
+						runLayout(algo);
+					}}
+					onAddNode={() => createNodeMutation.mutate("New Node")}
+					layoutAlgorithms={LAYOUT_ALGORITHMS}
+					selectedAlgoId={selectedAlgo.id}
+				/>
 			</div>
 		</NodeTypeProvider>
 	);
