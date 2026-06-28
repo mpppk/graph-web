@@ -47,6 +47,10 @@ export default function BetterAuthHeader() {
 						<ThemeToggle />
 					</div>
 					<DropdownMenuSeparator />
+					<DropdownMenuItem asChild>
+						<Link to="/orgs">Organizations</Link>
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
 					<DropdownMenuItem
 						onSelect={() => {
 							void authClient.signOut();

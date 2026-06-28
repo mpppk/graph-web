@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
+import * as authSchema from "#/db/auth-schema";
+import { db } from "#/db/index";
 import { auth } from "#/lib/auth";
 import { requireUserId } from "#/lib/graph-auth-internal";
 
@@ -21,6 +24,18 @@ export const createOrg = createServerFn({ method: "POST" })
 			headers: request.headers,
 			body: { name: data.name, slug: data.slug },
 		});
+	});
+
+export const getTeam = createServerFn({ method: "GET" })
+	.inputValidator(z.object({ teamId: z.string() }))
+	.handler(async ({ data }) => {
+		await requireUserId();
+		const [result] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, data.teamId));
+		if (!result) throw new Error("Team not found");
+		return result;
 	});
 
 export const listTeams = createServerFn({ method: "GET" })
