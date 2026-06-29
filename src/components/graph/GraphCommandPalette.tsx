@@ -217,7 +217,11 @@ export function GraphCommandPalette({
 										</CommandItem>
 									</CommandGroup>
 
-									<CommandGroup heading="AI">
+									{/* forceMount the group too: cmdk hides a group whose only
+									    child is a forceMounted (non-matching) item, so without
+									    this the AI entry vanishes as soon as the query matches
+									    no command. */}
+									<CommandGroup heading="AI" forceMount>
 										<CommandItem
 											// Always available regardless of the search text.
 											forceMount
