@@ -30,7 +30,7 @@ export const Route = createFileRoute("/accept-invitation")({
 		return getInvitation({ data: { invitationId: id } });
 	},
 	errorComponent: ({ error }) => (
-		<main className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4">
+		<main className="flex min-h-full items-center justify-center px-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader>
 					<CardTitle className="text-2xl">Invitation Error</CardTitle>
@@ -84,7 +84,7 @@ function AcceptInvitationPage() {
 	const isPending = accepting || rejecting;
 
 	return (
-		<main className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4">
+		<main className="flex min-h-full items-center justify-center px-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader>
 					<CardTitle className="text-2xl">You've been invited</CardTitle>
