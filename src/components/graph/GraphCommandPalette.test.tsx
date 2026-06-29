@@ -62,6 +62,18 @@ test("再配置 drills down into the algorithm list", () => {
 	expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
+test("再配置 sub-page shows a back button that returns to root commands", () => {
+	renderPalette();
+	fireEvent.click(screen.getByText("再配置…"));
+	// Back button is visible in the layout sub-page.
+	const backButton = screen.getByText("コマンドに戻る");
+	expect(backButton).toBeDefined();
+	// Clicking it returns to root commands.
+	fireEvent.click(backButton);
+	expect(screen.getByText("Copy as Mermaid")).toBeDefined();
+	expect(screen.getByText("再配置…")).toBeDefined();
+});
+
 test("selecting the AI entry switches to chat mode and sends a placeholder reply", () => {
 	renderPalette();
 	const input = screen.getByPlaceholderText(

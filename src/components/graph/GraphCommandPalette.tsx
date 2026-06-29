@@ -175,6 +175,23 @@ export function GraphCommandPalette({
 						</div>
 					)}
 
+					{page === "layout" && mode === "command" && (
+						<div className="flex items-center gap-2 border-b px-3 py-2">
+							<button
+								type="button"
+								onClick={() => setPages((prev) => prev.slice(0, -1))}
+								className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<ArrowLeftIcon className="size-3.5" />
+								コマンドに戻る
+							</button>
+							<span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+								<LayoutGridIcon className="size-3.5" />
+								再配置
+							</span>
+						</div>
+					)}
+
 					<CommandInput
 						placeholder={
 							mode === "ai"
