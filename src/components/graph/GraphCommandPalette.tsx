@@ -24,6 +24,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
+import { useKeyboardInset } from "#/lib/useKeyboardInset";
 import type { LayoutAlgorithm } from "./constants";
 
 type Mode = "command" | "ai";
@@ -63,6 +64,9 @@ export function GraphCommandPalette({
 	const [search, setSearch] = useState("");
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+
+	// On mobile, lift the palette above the virtual keyboard (PC stays centered).
+	const keyboardInset = useKeyboardInset(open);
 
 	const page = pages[pages.length - 1];
 
@@ -141,7 +145,13 @@ export function GraphCommandPalette({
 					コマンドを検索して実行するか、AIに質問します。
 				</DialogDescription>
 			</DialogHeader>
-			<DialogContent className="overflow-hidden p-0" showCloseButton={false}>
+			<DialogContent
+				className="overflow-hidden p-0 max-sm:top-auto max-sm:bottom-[var(--cmdk-kb-inset)] max-sm:translate-y-0"
+				style={
+					{ "--cmdk-kb-inset": `${keyboardInset}px` } as React.CSSProperties
+				}
+				showCloseButton={false}
+			>
 				<Command
 					className={cmdkClassName}
 					shouldFilter={mode === "command"}
