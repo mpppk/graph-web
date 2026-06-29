@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react";
 import { getSession } from "#/lib/graph-auth";
 import {
 	getGraph,
+	listCreationTypeSettings,
 	listEdges,
 	listNodes,
 	listNodeTypesForGraph,
@@ -13,7 +14,7 @@ import { setActiveOrganization, setActiveTeam } from "#/lib/org-server-fns";
 const GraphCanvas = lazy(() => import("#/components/graph/GraphCanvas"));
 
 export const Route = createFileRoute(
-	"/org/$orgId/team/$teamId/graphs/$graphId",
+	"/org/$orgId/team/$teamId/graphs/$graphId/",
 )({
 	component: TeamGraphPage,
 	beforeLoad: async () => {
@@ -28,12 +29,14 @@ export const Route = createFileRoute(
 			setActiveTeam({ data: { teamId: params.teamId } }).catch(() => {}),
 		]);
 
-		const [graph, nodeList, edgeList, nodeTypeList] = await Promise.all([
-			getGraph({ data: { id: params.graphId } }),
-			listNodes({ data: { graphId: params.graphId } }),
-			listEdges({ data: { graphId: params.graphId } }),
-			listNodeTypesForGraph({ data: { graphId: params.graphId } }),
-		]);
+		const [graph, nodeList, edgeList, nodeTypeList, creationTypeSettings] =
+			await Promise.all([
+				getGraph({ data: { id: params.graphId } }),
+				listNodes({ data: { graphId: params.graphId } }),
+				listEdges({ data: { graphId: params.graphId } }),
+				listNodeTypesForGraph({ data: { graphId: params.graphId } }),
+				listCreationTypeSettings({ data: { graphId: params.graphId } }),
+			]);
 
 		const initialNodes: RFNode[] = nodeList.map((n) => ({
 			id: n.id,
@@ -55,6 +58,7 @@ export const Route = createFileRoute(
 			initialNodes,
 			initialEdges,
 			initialNodeTypes: nodeTypeList,
+			initialCreationTypeSettings: creationTypeSettings,
 			orgId: params.orgId,
 			teamId: params.teamId,
 		};
@@ -62,8 +66,15 @@ export const Route = createFileRoute(
 });
 
 function TeamGraphPage() {
-	const { graph, initialNodes, initialEdges, initialNodeTypes, orgId, teamId } =
-		Route.useLoaderData();
+	const {
+		graph,
+		initialNodes,
+		initialEdges,
+		initialNodeTypes,
+		initialCreationTypeSettings,
+		orgId,
+		teamId,
+	} = Route.useLoaderData();
 
 	return (
 		<Suspense
@@ -78,6 +89,7 @@ function TeamGraphPage() {
 				initialNodes={initialNodes}
 				initialEdges={initialEdges}
 				initialNodeTypes={initialNodeTypes}
+				initialCreationTypeSettings={initialCreationTypeSettings}
 				backHref={`/org/${orgId}/team/${teamId}/graphs`}
 				orgId={orgId}
 				teamId={teamId}

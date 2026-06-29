@@ -19,10 +19,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { graphs } from "#/db/schema";
 import {
+	type CreationTypeSetting,
 	createEdge,
 	createNode,
 	deleteEdge,
 	deleteNode,
+	listCreationTypeSettings,
 	listNodeMetadata,
 	listNodeTypesForGraph,
 	type NodeTypeWithFields,
@@ -37,6 +39,7 @@ import {
 	LAYOUT_ALGORITHMS,
 	type LayoutAlgorithm,
 } from "./constants";
+import { enabledCreationTypeNames } from "./creation-types";
 import { EdgeSidePanel } from "./EdgeSidePanel";
 import { EditableEdge } from "./EditableEdge";
 import { EditableNode } from "./EditableNode";
@@ -45,7 +48,6 @@ import { GraphCommandPalette } from "./GraphCommandPalette";
 import { generateMermaidDiagram } from "./mermaid-export";
 import { NodeSidePanel } from "./NodeSidePanel";
 import { buildColorMap, NodeTypeProvider } from "./NodeTypeContext";
-import { NodeTypeManagerPanel } from "./NodeTypeManagerPanel";
 
 type Graph = typeof graphs.$inferSelect;
 
@@ -96,6 +98,7 @@ function GraphCanvasInner({
 	initialNodes,
 	initialEdges,
 	initialNodeTypes,
+	initialCreationTypeSettings = [],
 	backHref = "/graphs",
 	orgId,
 	teamId,
@@ -104,6 +107,7 @@ function GraphCanvasInner({
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
+	initialCreationTypeSettings?: CreationTypeSetting[];
 	backHref?: string;
 	orgId?: string;
 	teamId?: string;
@@ -115,13 +119,27 @@ function GraphCanvasInner({
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-	const [typeManagerOpen, setTypeManagerOpen] = useState(false);
 
 	const { data: nodeTypeList = [] } = useQuery({
 		queryKey: ["nodeTypes", graph.id],
 		queryFn: () => listNodeTypesForGraph({ data: { graphId: graph.id } }),
 		initialData: initialNodeTypes,
 	});
+
+	const { data: creationTypeSettings = [] } = useQuery({
+		queryKey: ["creationTypeSettings", graph.id],
+		queryFn: () => listCreationTypeSettings({ data: { graphId: graph.id } }),
+		initialData: initialCreationTypeSettings,
+	});
+	const creationTypeNames = enabledCreationTypeNames(
+		nodeTypeList,
+		creationTypeSettings,
+	);
+
+	const settingsHref =
+		orgId && teamId
+			? `/org/${orgId}/team/${teamId}/graphs/${graph.id}/settings`
+			: `/graphs/${graph.id}/settings`;
 	const [selectedAlgo, setSelectedAlgo] = useState<LayoutAlgorithm>(
 		DEFAULT_LAYOUT_ALGORITHM,
 	);
@@ -135,13 +153,20 @@ function GraphCanvasInner({
 	});
 
 	const createNodeMutation = useMutation({
-		mutationFn: (label: string) =>
+		mutationFn: ({
+			label,
+			nodeType,
+		}: {
+			label: string;
+			nodeType: string | null;
+		}) =>
 			createNode({
 				data: {
 					graphId: graph.id,
 					label,
 					x: Math.random() * 400,
 					y: Math.random() * 300,
+					nodeType,
 				},
 			}),
 		onSuccess: (newNode) => {
@@ -650,26 +675,23 @@ function GraphCanvasInner({
 							onUpdateLabel={handleUpdateEdgeLabel}
 						/>
 					)}
-					{typeManagerOpen && (
-						<NodeTypeManagerPanel
-							graphId={graph.id}
-							orgId={orgId}
-							teamId={teamId}
-							onClose={() => setTypeManagerOpen(false)}
-						/>
-					)}
 				</div>
 
 				<GraphCommandPalette
 					open={paletteOpen}
 					onOpenChange={setPaletteOpen}
 					onCopyMermaid={handleCopyMermaid}
-					onOpenTypeManager={() => setTypeManagerOpen(true)}
+					onOpenSettings={() =>
+						navigate({ to: settingsHref } as Parameters<typeof navigate>[0])
+					}
 					onRunLayout={(algo) => {
 						setSelectedAlgo(algo);
 						runLayout(algo);
 					}}
-					onAddNode={() => createNodeMutation.mutate("New Node")}
+					onAddNode={(nodeType) =>
+						createNodeMutation.mutate({ label: "New Node", nodeType })
+					}
+					creationTypes={creationTypeNames}
 					layoutAlgorithms={LAYOUT_ALGORITHMS}
 					selectedAlgoId={selectedAlgo.id}
 				/>
@@ -683,6 +705,7 @@ export default function GraphCanvas(props: {
 	initialNodes: RFNode[];
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
+	initialCreationTypeSettings?: CreationTypeSetting[];
 	backHref?: string;
 	orgId?: string;
 	teamId?: string;

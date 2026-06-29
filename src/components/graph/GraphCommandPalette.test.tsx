@@ -23,9 +23,10 @@ function renderPalette(overrides: Record<string, unknown> = {}) {
 		open: true,
 		onOpenChange: vi.fn(),
 		onCopyMermaid: vi.fn(),
-		onOpenTypeManager: vi.fn(),
+		onOpenSettings: vi.fn(),
 		onRunLayout: vi.fn(),
 		onAddNode: vi.fn(),
+		creationTypes: ["KPI", "Feature"],
 		layoutAlgorithms: LAYOUT_ALGORITHMS,
 		selectedAlgoId: LAYOUT_ALGORITHMS[0].id,
 		...overrides,
@@ -37,9 +38,9 @@ function renderPalette(overrides: Record<string, unknown> = {}) {
 test("shows the root commands and the AI entry", () => {
 	renderPalette();
 	expect(screen.getByText("Copy as Mermaid")).toBeDefined();
-	expect(screen.getByText("タイプ管理を開く")).toBeDefined();
+	expect(screen.getByText("設定を開く")).toBeDefined();
 	expect(screen.getByText("再配置…")).toBeDefined();
-	expect(screen.getByText("ノードを追加")).toBeDefined();
+	expect(screen.getByText("ノードを追加…")).toBeDefined();
 	expect(screen.getByText("AIに質問する")).toBeDefined();
 });
 
@@ -47,6 +48,13 @@ test("running a command invokes the handler and closes", () => {
 	const props = renderPalette();
 	fireEvent.click(screen.getByText("Copy as Mermaid"));
 	expect(props.onCopyMermaid).toHaveBeenCalledTimes(1);
+	expect(props.onOpenChange).toHaveBeenCalledWith(false);
+});
+
+test("設定を開く invokes onOpenSettings and closes", () => {
+	const props = renderPalette();
+	fireEvent.click(screen.getByText("設定を開く"));
+	expect(props.onOpenSettings).toHaveBeenCalledTimes(1);
 	expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
@@ -72,6 +80,26 @@ test("再配置 sub-page shows a back button that returns to root commands", () 
 	fireEvent.click(backButton);
 	expect(screen.getByText("Copy as Mermaid")).toBeDefined();
 	expect(screen.getByText("再配置…")).toBeDefined();
+});
+
+test("ノードを追加 drills down into the creation type list", () => {
+	const props = renderPalette();
+	fireEvent.click(screen.getByText("ノードを追加…"));
+	// Sub-page lists "タイプなし" plus every enabled creation type.
+	expect(screen.getByText("タイプなし")).toBeDefined();
+	expect(screen.getByText("KPI")).toBeDefined();
+	expect(screen.getByText("Feature")).toBeDefined();
+	fireEvent.click(screen.getByText("KPI"));
+	expect(props.onAddNode).toHaveBeenCalledWith("KPI");
+	expect(props.onOpenChange).toHaveBeenCalledWith(false);
+});
+
+test("ノードを追加 can create a node with no type", () => {
+	const props = renderPalette();
+	fireEvent.click(screen.getByText("ノードを追加…"));
+	fireEvent.click(screen.getByText("タイプなし"));
+	expect(props.onAddNode).toHaveBeenCalledWith(null);
+	expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
 test("selecting the AI entry switches to chat mode and sends a placeholder reply", () => {

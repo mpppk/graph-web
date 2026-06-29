@@ -3,6 +3,7 @@ import type { Edge as RFEdge, Node as RFNode } from "@xyflow/react";
 import { lazy, Suspense } from "react";
 import {
 	getGraph,
+	listCreationTypeSettings,
 	listEdges,
 	listNodes,
 	listNodeTypesForGraph,
@@ -10,15 +11,17 @@ import {
 
 const GraphCanvas = lazy(() => import("#/components/graph/GraphCanvas"));
 
-export const Route = createFileRoute("/graphs/$graphId")({
+export const Route = createFileRoute("/graphs/$graphId/")({
 	component: GraphPage,
 	loader: async ({ params }) => {
-		const [graph, nodeList, edgeList, nodeTypeList] = await Promise.all([
-			getGraph({ data: { id: params.graphId } }),
-			listNodes({ data: { graphId: params.graphId } }),
-			listEdges({ data: { graphId: params.graphId } }),
-			listNodeTypesForGraph({ data: { graphId: params.graphId } }),
-		]);
+		const [graph, nodeList, edgeList, nodeTypeList, creationTypeSettings] =
+			await Promise.all([
+				getGraph({ data: { id: params.graphId } }),
+				listNodes({ data: { graphId: params.graphId } }),
+				listEdges({ data: { graphId: params.graphId } }),
+				listNodeTypesForGraph({ data: { graphId: params.graphId } }),
+				listCreationTypeSettings({ data: { graphId: params.graphId } }),
+			]);
 
 		const initialNodes: RFNode[] = nodeList.map((n) => ({
 			id: n.id,
@@ -40,13 +43,19 @@ export const Route = createFileRoute("/graphs/$graphId")({
 			initialNodes,
 			initialEdges,
 			initialNodeTypes: nodeTypeList,
+			initialCreationTypeSettings: creationTypeSettings,
 		};
 	},
 });
 
 function GraphPage() {
-	const { graph, initialNodes, initialEdges, initialNodeTypes } =
-		Route.useLoaderData();
+	const {
+		graph,
+		initialNodes,
+		initialEdges,
+		initialNodeTypes,
+		initialCreationTypeSettings,
+	} = Route.useLoaderData();
 
 	return (
 		<Suspense
@@ -61,6 +70,7 @@ function GraphPage() {
 				initialNodes={initialNodes}
 				initialEdges={initialEdges}
 				initialNodeTypes={initialNodeTypes}
+				initialCreationTypeSettings={initialCreationTypeSettings}
 				backHref="/graphs"
 			/>
 		</Suspense>

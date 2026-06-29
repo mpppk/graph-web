@@ -26,16 +26,14 @@ const SCOPE_LABELS: Record<string, string> = {
 	org: "組織",
 };
 
-export function NodeTypeManagerPanel({
+export function NodeTypeManager({
 	graphId,
 	orgId,
 	teamId,
-	onClose,
 }: {
 	graphId: string;
 	orgId?: string;
 	teamId?: string;
-	onClose: () => void;
 }) {
 	const { typeList } = useNodeTypes();
 	const qc = useQueryClient();
@@ -102,107 +100,87 @@ export function NodeTypeManagerPanel({
 	}, [newName, createMut]);
 
 	return (
-		<aside className="fixed inset-x-0 bottom-0 z-20 flex max-h-[70vh] flex-col rounded-t-xl border-t bg-card shadow-lg md:static md:z-auto md:max-h-none md:w-80 md:flex-shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none">
-			<div className="flex items-center justify-between border-b px-4 py-3">
-				<span className="text-sm font-semibold text-foreground">
-					タイプ管理
-				</span>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-7 w-7"
-					onClick={onClose}
-					aria-label="Close panel"
-				>
-					✕
-				</Button>
-			</div>
-
-			<div className="flex-1 space-y-5 overflow-y-auto p-4">
-				{/* Create new type */}
-				<section className="space-y-2 rounded-md border p-3">
-					<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-						新規タイプ
-					</p>
-					<div className="flex items-center gap-2">
-						<input
-							type="color"
-							value={newColor}
-							onChange={(e) => setNewColor(e.target.value)}
-							className="h-9 w-9 shrink-0 cursor-pointer rounded border bg-transparent"
-							aria-label="Color"
-						/>
-						<Input
-							value={newName}
-							placeholder="タイプ名"
-							onChange={(e) => setNewName(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") handleCreate();
-							}}
-							className="text-sm"
-						/>
-					</div>
-					<Select
-						value={newScope}
-						onValueChange={(v) =>
-							setNewScope(v as "user" | "graph" | "team" | "org")
-						}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
-							<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
-							{teamId && (
-								<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
-							)}
-							{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
-						</SelectContent>
-					</Select>
+		<div className="space-y-5">
+			{/* Create new type */}
+			<section className="space-y-2 rounded-md border p-3">
+				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+					新規タイプ
+				</p>
+				<div className="flex items-center gap-2">
+					<input
+						type="color"
+						value={newColor}
+						onChange={(e) => setNewColor(e.target.value)}
+						className="h-9 w-9 shrink-0 cursor-pointer rounded border bg-transparent"
+						aria-label="Color"
+					/>
 					<Input
-						value={newFields}
-						placeholder="メタデータキー (カンマ区切り)"
-						onChange={(e) => setNewFields(e.target.value)}
+						value={newName}
+						placeholder="タイプ名"
+						onChange={(e) => setNewName(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") handleCreate();
+						}}
 						className="text-sm"
 					/>
-					<Button
-						type="button"
-						size="sm"
-						className="w-full"
-						disabled={!newName.trim() || createMut.isPending}
-						onClick={handleCreate}
-					>
-						追加
-					</Button>
-				</section>
+				</div>
+				<Select
+					value={newScope}
+					onValueChange={(v) =>
+						setNewScope(v as "user" | "graph" | "team" | "org")
+					}
+				>
+					<SelectTrigger className="w-full">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
+						<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
+						{teamId && (
+							<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
+						)}
+						{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
+					</SelectContent>
+				</Select>
+				<Input
+					value={newFields}
+					placeholder="メタデータキー (カンマ区切り)"
+					onChange={(e) => setNewFields(e.target.value)}
+					className="text-sm"
+				/>
+				<Button
+					type="button"
+					size="sm"
+					className="w-full"
+					disabled={!newName.trim() || createMut.isPending}
+					onClick={handleCreate}
+				>
+					追加
+				</Button>
+			</section>
 
-				{/* Existing types */}
-				<section className="space-y-3">
-					<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-						既存タイプ
-					</p>
-					{typeList.length === 0 && (
-						<p className="text-xs text-muted-foreground">タイプなし</p>
-					)}
-					{typeList.map((t) => (
-						<NodeTypeRow
-							key={t.id}
-							type={t}
-							scopeLabel={SCOPE_LABELS[t.scope] ?? t.scope}
-							onColorChange={(color) => renameMut.mutate({ id: t.id, color })}
-							onRename={(name) => renameMut.mutate({ id: t.id, name })}
-							onDelete={() => deleteMut.mutate(t.id)}
-							onAddField={(key) =>
-								addFieldMut.mutate({ nodeTypeId: t.id, key })
-							}
-							onDeleteField={(id) => deleteFieldMut.mutate(id)}
-						/>
-					))}
-				</section>
-			</div>
-		</aside>
+			{/* Existing types */}
+			<section className="space-y-3">
+				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+					既存タイプ
+				</p>
+				{typeList.length === 0 && (
+					<p className="text-xs text-muted-foreground">タイプなし</p>
+				)}
+				{typeList.map((t) => (
+					<NodeTypeRow
+						key={t.id}
+						type={t}
+						scopeLabel={SCOPE_LABELS[t.scope] ?? t.scope}
+						onColorChange={(color) => renameMut.mutate({ id: t.id, color })}
+						onRename={(name) => renameMut.mutate({ id: t.id, name })}
+						onDelete={() => deleteMut.mutate(t.id)}
+						onAddField={(key) => addFieldMut.mutate({ nodeTypeId: t.id, key })}
+						onDeleteField={(id) => deleteFieldMut.mutate(id)}
+					/>
+				))}
+			</section>
+		</div>
 	);
 }
 

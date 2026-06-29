@@ -82,6 +82,28 @@ export const nodeTypes = sqliteTable(
 	],
 );
 
+// Per-graph overrides for which node types are selectable when creating a new
+// node. Types default to enabled, so only explicit overrides are stored here
+// (the absence of a row means the type is enabled for creation).
+export const graphCreationTypeSettings = sqliteTable(
+	"graph_creation_type_settings",
+	{
+		id: text("id").primaryKey(),
+		graphId: text("graph_id")
+			.notNull()
+			.references(() => graphs.id, { onDelete: "cascade" }),
+		typeName: text("type_name").notNull(),
+		enabled: integer("enabled", { mode: "boolean" }).notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(t) => [
+		uniqueIndex("graph_creation_type_settings_graph_id_type_name_unique").on(
+			t.graphId,
+			t.typeName,
+		),
+	],
+);
+
 // The metadata field keys a node type defines. When the type is assigned to a
 // node, these keys are added to the node's metadata as empty template entries.
 export const nodeTypeFields = sqliteTable(

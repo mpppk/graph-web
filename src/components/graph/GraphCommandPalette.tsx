@@ -5,8 +5,8 @@ import {
 	ClipboardCopyIcon,
 	LayoutGridIcon,
 	PlusIcon,
+	SettingsIcon,
 	SparklesIcon,
-	TagsIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -35,7 +35,9 @@ type ChatMessage = {
 };
 
 const AI_PLACEHOLDER_REPLY =
-	"AIアシスタント連携は近日対応予定です。今のところコマンド（Copy as Mermaid・タイプ管理・再配置・ノード追加）を実行できます。";
+	"AIアシスタント連携は近日対応予定です。今のところコマンド（Copy as Mermaid・設定・再配置・ノード追加）を実行できます。";
+
+const NO_TYPE_VALUE = "__none__";
 
 const cmdkClassName =
 	"[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5";
@@ -44,18 +46,20 @@ export function GraphCommandPalette({
 	open,
 	onOpenChange,
 	onCopyMermaid,
-	onOpenTypeManager,
+	onOpenSettings,
 	onRunLayout,
 	onAddNode,
+	creationTypes,
 	layoutAlgorithms,
 	selectedAlgoId,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCopyMermaid: () => void;
-	onOpenTypeManager: () => void;
+	onOpenSettings: () => void;
 	onRunLayout: (algo: LayoutAlgorithm) => void;
-	onAddNode: () => void;
+	onAddNode: (nodeType: string | null) => void;
+	creationTypes: string[];
 	layoutAlgorithms: LayoutAlgorithm[];
 	selectedAlgoId: string;
 }) {
@@ -192,6 +196,23 @@ export function GraphCommandPalette({
 						</div>
 					)}
 
+					{page === "addNode" && mode === "command" && (
+						<div className="flex items-center gap-2 border-b px-3 py-2">
+							<button
+								type="button"
+								onClick={() => setPages((prev) => prev.slice(0, -1))}
+								className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<ArrowLeftIcon className="size-3.5" />
+								コマンドに戻る
+							</button>
+							<span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+								<PlusIcon className="size-3.5" />
+								ノードを追加
+							</span>
+						</div>
+					)}
+
 					<CommandInput
 						placeholder={
 							mode === "ai"
@@ -218,11 +239,11 @@ export function GraphCommandPalette({
 											Copy as Mermaid
 										</CommandItem>
 										<CommandItem
-											keywords={["type", "タイプ", "管理"]}
-											onSelect={() => runAndClose(onOpenTypeManager)}
+											keywords={["settings", "設定", "type", "タイプ", "管理"]}
+											onSelect={() => runAndClose(onOpenSettings)}
 										>
-											<TagsIcon />
-											タイプ管理を開く
+											<SettingsIcon />
+											設定を開く
 										</CommandItem>
 										<CommandItem
 											keywords={["layout", "再配置", "レイアウト", "整列"]}
@@ -237,10 +258,14 @@ export function GraphCommandPalette({
 										</CommandItem>
 										<CommandItem
 											keywords={["add", "node", "追加", "ノード"]}
-											onSelect={() => runAndClose(onAddNode)}
+											onSelect={() => {
+												setSearch("");
+												setPages((prev) => [...prev, "addNode"]);
+											}}
 										>
 											<PlusIcon />
-											ノードを追加
+											ノードを追加…
+											<ChevronRightIcon className="ml-auto" />
 										</CommandItem>
 									</CommandGroup>
 
@@ -277,6 +302,29 @@ export function GraphCommandPalette({
 											{algo.id === selectedAlgoId && (
 												<CheckIcon className="ml-auto" />
 											)}
+										</CommandItem>
+									))}
+								</CommandGroup>
+							)}
+
+							{page === "addNode" && (
+								<CommandGroup heading="ノードを追加: タイプを選択">
+									<CommandItem
+										value={NO_TYPE_VALUE}
+										keywords={["none", "なし", "タイプなし"]}
+										onSelect={() => runAndClose(() => onAddNode(null))}
+									>
+										<PlusIcon />
+										タイプなし
+									</CommandItem>
+									{creationTypes.map((name) => (
+										<CommandItem
+											key={name}
+											keywords={[name, "type", "タイプ", "node", "ノード"]}
+											onSelect={() => runAndClose(() => onAddNode(name))}
+										>
+											<PlusIcon />
+											{name}
 										</CommandItem>
 									))}
 								</CommandGroup>
