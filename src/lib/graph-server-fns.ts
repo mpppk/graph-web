@@ -5,6 +5,7 @@ import * as authSchema from "#/db/auth-schema";
 import { db } from "#/db/index";
 import {
 	edges,
+	graphCreationTypeSettings,
 	graphs,
 	nodeMetadata,
 	nodes,
@@ -104,6 +105,78 @@ async function requireOwnedNodeType(typeId: string, userId: string) {
 	return type;
 }
 
+// Add a node type's template metadata keys to a node (empty values, never
+// overwriting existing entries). Resolves the applicable type definition using
+// graph > team > org > user precedence. Returns the keys that were seeded.
+async function seedNodeTypeTemplate(
+	nodeId: string,
+	graph: typeof graphs.$inferSelect,
+	nodeType: string,
+): Promise<string[]> {
+	const conditions: ReturnType<typeof and>[] = [
+		and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
+		and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, graph.id)),
+	];
+
+	if (graph.teamId) {
+		const [graphTeam] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, graph.teamId));
+		if (graphTeam) {
+			conditions.push(
+				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
+			);
+			conditions.push(
+				and(
+					eq(nodeTypes.scope, "org"),
+					eq(nodeTypes.scopeId, graphTeam.organizationId),
+				),
+			);
+		}
+	}
+
+	const matches = await db
+		.select()
+		.from(nodeTypes)
+		.where(
+			and(
+				eq(nodeTypes.name, nodeType),
+				or(...(conditions as Parameters<typeof or>)),
+			),
+		);
+
+	// graph > team > org > user precedence
+	const scopePriority = { graph: 0, team: 1, org: 2, user: 3 } as Record<
+		string,
+		number
+	>;
+	const type = matches.sort(
+		(a, b) => (scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
+	)[0];
+	if (!type) return [];
+
+	const fields = await db
+		.select()
+		.from(nodeTypeFields)
+		.where(eq(nodeTypeFields.nodeTypeId, type.id));
+	if (!fields.length) return [];
+
+	await db
+		.insert(nodeMetadata)
+		.values(
+			fields.map((f) => ({
+				id: crypto.randomUUID(),
+				nodeId,
+				key: f.key,
+				value: "",
+			})),
+		)
+		.onConflictDoNothing();
+
+	return fields.map((f) => f.key);
+}
+
 // ── Graph operations ──────────────────────────────────────────────────────────
 
 export const listGraphs = createServerFn({ method: "GET" })
@@ -186,19 +259,29 @@ export const listNodes = createServerFn({ method: "GET" })
 
 export const createNode = createServerFn({ method: "POST" })
 	.inputValidator(
-		(data: { graphId: string; label: string; x?: number; y?: number }) => data,
+		(data: {
+			graphId: string;
+			label: string;
+			x?: number;
+			y?: number;
+			nodeType?: string | null;
+		}) => data,
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await assertGraphAccess(data.graphId, userId);
+		const graph = await assertGraphAccess(data.graphId, userId);
 		const id = crypto.randomUUID();
+		const nodeType = data.nodeType ?? null;
 		await db.insert(nodes).values({
 			id,
 			graphId: data.graphId,
 			label: data.label,
 			x: data.x ?? 0,
 			y: data.y ?? 0,
+			nodeType,
 		});
+		// Seed the type's template metadata so a typed node starts with its fields.
+		if (nodeType) await seedNodeTypeTemplate(id, graph, nodeType);
 		const [node] = await db.select().from(nodes).where(eq(nodes.id, id));
 		return node;
 	});
@@ -695,67 +778,50 @@ export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 			.where(eq(graphs.id, node.graphId));
 		if (!graph) return { success: true, addedKeys: [] as string[] };
 
-		// Build applicable type conditions: graph > team > org > user
-		const conditions: ReturnType<typeof and>[] = [
-			and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
-			and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, node.graphId)),
-		];
+		const addedKeys = await seedNodeTypeTemplate(data.id, graph, data.nodeType);
+		return { success: true, addedKeys };
+	});
 
-		if (graph.teamId) {
-			const [graphTeam] = await db
-				.select()
-				.from(authSchema.team)
-				.where(eq(authSchema.team.id, graph.teamId));
-			if (graphTeam) {
-				conditions.push(
-					and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
-				);
-				conditions.push(
-					and(
-						eq(nodeTypes.scope, "org"),
-						eq(nodeTypes.scopeId, graphTeam.organizationId),
-					),
-				);
-			}
-		}
+// ── Creation type settings ────────────────────────────────────────────────────
 
-		const matches = await db
+export type CreationTypeSetting = { typeName: string; enabled: boolean };
+
+// List the per-graph overrides for which node types are selectable at node
+// creation. Types default to enabled, so only explicit overrides are returned.
+export const listCreationTypeSettings = createServerFn({ method: "GET" })
+	.inputValidator((data: { graphId: string }) => data)
+	.handler(async ({ data }): Promise<CreationTypeSetting[]> => {
+		const userId = await requireUserId();
+		await assertGraphAccess(data.graphId, userId);
+		const rows = await db
 			.select()
-			.from(nodeTypes)
-			.where(
-				and(
-					eq(nodeTypes.name, data.nodeType),
-					or(...(conditions as Parameters<typeof or>)),
-				),
-			);
+			.from(graphCreationTypeSettings)
+			.where(eq(graphCreationTypeSettings.graphId, data.graphId));
+		return rows.map((r) => ({ typeName: r.typeName, enabled: r.enabled }));
+	});
 
-		// graph > team > org > user precedence
-		const scopePriority = { graph: 0, team: 1, org: 2, user: 3 } as Record<
-			string,
-			number
-		>;
-		const type = matches.sort(
-			(a, b) => (scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
-		)[0];
-		if (!type) return { success: true, addedKeys: [] as string[] };
-
-		const fields = await db
-			.select()
-			.from(nodeTypeFields)
-			.where(eq(nodeTypeFields.nodeTypeId, type.id));
-		if (!fields.length) return { success: true, addedKeys: [] as string[] };
-
+// Toggle whether a node type is selectable at node creation for a graph.
+export const setCreationTypeEnabled = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: { graphId: string; typeName: string; enabled: boolean }) => data,
+	)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertGraphAccess(data.graphId, userId);
 		await db
-			.insert(nodeMetadata)
-			.values(
-				fields.map((f) => ({
-					id: crypto.randomUUID(),
-					nodeId: data.id,
-					key: f.key,
-					value: "",
-				})),
-			)
-			.onConflictDoNothing();
-
-		return { success: true, addedKeys: fields.map((f) => f.key) };
+			.insert(graphCreationTypeSettings)
+			.values({
+				id: crypto.randomUUID(),
+				graphId: data.graphId,
+				typeName: data.typeName,
+				enabled: data.enabled,
+			})
+			.onConflictDoUpdate({
+				target: [
+					graphCreationTypeSettings.graphId,
+					graphCreationTypeSettings.typeName,
+				],
+				set: { enabled: data.enabled },
+			});
+		return { success: true };
 	});
