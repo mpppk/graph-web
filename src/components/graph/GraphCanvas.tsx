@@ -565,7 +565,7 @@ function GraphCanvasInner({
 
 	return (
 		<NodeTypeProvider typeList={nodeTypeList}>
-			<div className="flex h-screen flex-col">
+			<div className="flex h-full flex-col">
 				<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
 					<Button
 						type="button"
