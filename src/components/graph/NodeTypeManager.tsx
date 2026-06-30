@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { Button } from "#/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import {
 	Select,
@@ -58,6 +65,20 @@ export function NodeTypeManager({
 	);
 	const [newFields, setNewFields] = useState("");
 
+	const [dialogOpen, setDialogOpen] = useState(false);
+
+	const resetForm = () => {
+		setNewName("");
+		setNewColor("#3b82f6");
+		setNewScope(fixedScope ?? "user");
+		setNewFields("");
+	};
+
+	const handleOpenChange = (open: boolean) => {
+		if (!open) resetForm();
+		setDialogOpen(open);
+	};
+
 	const createMut = useMutation({
 		mutationFn: () => {
 			const fields = newFields
@@ -88,8 +109,8 @@ export function NodeTypeManager({
 			throw new Error("graphId or teamId is required");
 		},
 		onSuccess: () => {
-			setNewName("");
-			setNewFields("");
+			resetForm();
+			setDialogOpen(false);
 			invalidate();
 		},
 	});
@@ -122,88 +143,107 @@ export function NodeTypeManager({
 	}, [newName, createMut]);
 
 	return (
-		<div className="space-y-5">
-			{/* Create new type */}
-			<section className="space-y-2 rounded-md border p-3">
-				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-					新規タイプ
-				</p>
-				<div className="flex items-center gap-2">
-					<input
-						type="color"
-						value={newColor}
-						onChange={(e) => setNewColor(e.target.value)}
-						className="h-9 w-9 shrink-0 cursor-pointer rounded border bg-transparent"
-						aria-label="Color"
-					/>
-					<Input
-						value={newName}
-						placeholder="タイプ名"
-						onChange={(e) => setNewName(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") handleCreate();
-						}}
-						className="text-sm"
-					/>
-				</div>
-				{!fixedScope && (
-					<Select
-						value={newScope}
-						onValueChange={(v) =>
-							setNewScope(v as "user" | "graph" | "team" | "org")
-						}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
-							<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
-							{teamId && (
-								<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
-							)}
-							{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
-						</SelectContent>
-					</Select>
-				)}
-				<Input
-					value={newFields}
-					placeholder="メタデータキー (カンマ区切り)"
-					onChange={(e) => setNewFields(e.target.value)}
-					className="text-sm"
+		<div className="space-y-3">
+			{typeList.length === 0 && (
+				<p className="text-xs text-muted-foreground">タイプなし</p>
+			)}
+			{typeList.map((t) => (
+				<NodeTypeRow
+					key={t.id}
+					type={t}
+					scopeLabel={SCOPE_LABELS[t.scope] ?? t.scope}
+					onColorChange={(color) => renameMut.mutate({ id: t.id, color })}
+					onRename={(name) => renameMut.mutate({ id: t.id, name })}
+					onDelete={() => deleteMut.mutate(t.id)}
+					onAddField={(key) => addFieldMut.mutate({ nodeTypeId: t.id, key })}
+					onDeleteField={(id) => deleteFieldMut.mutate(id)}
 				/>
-				<Button
-					type="button"
-					size="sm"
-					className="w-full"
-					disabled={!newName.trim() || createMut.isPending}
-					onClick={handleCreate}
-				>
-					追加
-				</Button>
-			</section>
+			))}
 
-			{/* Existing types */}
-			<section className="space-y-3">
-				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-					既存タイプ
-				</p>
-				{typeList.length === 0 && (
-					<p className="text-xs text-muted-foreground">タイプなし</p>
-				)}
-				{typeList.map((t) => (
-					<NodeTypeRow
-						key={t.id}
-						type={t}
-						scopeLabel={SCOPE_LABELS[t.scope] ?? t.scope}
-						onColorChange={(color) => renameMut.mutate({ id: t.id, color })}
-						onRename={(name) => renameMut.mutate({ id: t.id, name })}
-						onDelete={() => deleteMut.mutate(t.id)}
-						onAddField={(key) => addFieldMut.mutate({ nodeTypeId: t.id, key })}
-						onDeleteField={(id) => deleteFieldMut.mutate(id)}
-					/>
-				))}
-			</section>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				className="w-full"
+				onClick={() => setDialogOpen(true)}
+			>
+				+ タイプを追加
+			</Button>
+
+			<Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>新規タイプ</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-3">
+						<div className="flex items-center gap-2">
+							<input
+								type="color"
+								value={newColor}
+								onChange={(e) => setNewColor(e.target.value)}
+								className="h-9 w-9 shrink-0 cursor-pointer rounded border bg-transparent"
+								aria-label="Color"
+							/>
+							<Input
+								value={newName}
+								placeholder="タイプ名"
+								onChange={(e) => setNewName(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleCreate();
+								}}
+								className="text-sm"
+								autoFocus
+							/>
+						</div>
+						{!fixedScope && (
+							<Select
+								value={newScope}
+								onValueChange={(v) =>
+									setNewScope(v as "user" | "graph" | "team" | "org")
+								}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
+									<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
+									{teamId && (
+										<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
+									)}
+									{orgId && (
+										<SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>
+									)}
+								</SelectContent>
+							</Select>
+						)}
+						<Input
+							value={newFields}
+							placeholder="メタデータキー (カンマ区切り)"
+							onChange={(e) => setNewFields(e.target.value)}
+							className="text-sm"
+						/>
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => handleOpenChange(false)}
+						>
+							キャンセル
+						</Button>
+						<Button
+							type="button"
+							disabled={!newName.trim() || createMut.isPending}
+							onClick={handleCreate}
+						>
+							追加
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
