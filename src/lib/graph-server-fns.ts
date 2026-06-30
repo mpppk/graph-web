@@ -25,6 +25,21 @@ const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 	{ name: "Solution", color: "#14b8a6" },
 ];
 
+async function assertTeamAccess(teamId: string, userId: string) {
+	const [team] = await db
+		.select()
+		.from(authSchema.team)
+		.where(eq(authSchema.team.id, teamId));
+	if (!team) throw new Error("Team not found");
+	const org = await auth.api.getFullOrganization({
+		headers: getRequest().headers,
+		query: { organizationId: team.organizationId },
+	});
+	const isMember = org?.members?.some((m) => m.userId === userId);
+	if (!isMember) throw new Error("Forbidden");
+	return team;
+}
+
 // Verify the user can access the graph.
 // Team-owned graphs: user must be an org member.
 // Legacy user-owned graphs: user must be the owner.
@@ -559,6 +574,81 @@ export const listNodeTypesForGraph = createServerFn({ method: "GET" })
 				.sort((a, b) => a.position - b.position)
 				.map((f) => ({ id: f.id, key: f.key, position: f.position })),
 		}));
+	});
+
+export const listNodeTypesForTeam = createServerFn({ method: "GET" })
+	.inputValidator((data: { teamId: string }) => data)
+	.handler(async ({ data }): Promise<NodeTypeWithFields[]> => {
+		const userId = await requireUserId();
+		await assertTeamAccess(data.teamId, userId);
+
+		const types = await db
+			.select()
+			.from(nodeTypes)
+			.where(
+				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, data.teamId)),
+			);
+
+		const typeIds = types.map((t) => t.id);
+		const fields = typeIds.length
+			? await db
+					.select()
+					.from(nodeTypeFields)
+					.where(inArray(nodeTypeFields.nodeTypeId, typeIds))
+			: [];
+
+		return types.map((t) => ({
+			id: t.id,
+			scope: t.scope,
+			scopeId: t.scopeId,
+			name: t.name,
+			color: t.color,
+			fields: fields
+				.filter((f) => f.nodeTypeId === t.id)
+				.sort((a, b) => a.position - b.position)
+				.map((f) => ({ id: f.id, key: f.key, position: f.position })),
+		}));
+	});
+
+export const createNodeTypeForTeam = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: {
+			teamId: string;
+			name: string;
+			color: string;
+			fields?: string[];
+		}) => data,
+	)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertTeamAccess(data.teamId, userId);
+
+		const name = data.name.trim();
+		if (!name) throw new Error("Name is required");
+
+		const id = crypto.randomUUID();
+		await db.insert(nodeTypes).values({
+			id,
+			scope: "team",
+			scopeId: data.teamId,
+			name,
+			color: data.color,
+		});
+
+		const keys = [
+			...new Set((data.fields ?? []).map((k) => k.trim()).filter(Boolean)),
+		];
+		if (keys.length) {
+			await db.insert(nodeTypeFields).values(
+				keys.map((key, i) => ({
+					id: crypto.randomUUID(),
+					nodeTypeId: id,
+					key,
+					position: i,
+				})),
+			);
+		}
+		return { id };
 	});
 
 export const createNodeType = createServerFn({ method: "POST" })

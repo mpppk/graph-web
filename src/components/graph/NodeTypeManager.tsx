@@ -12,6 +12,7 @@ import {
 import {
 	addNodeTypeField,
 	createNodeType,
+	createNodeTypeForTeam,
 	deleteNodeType,
 	deleteNodeTypeField,
 	type NodeTypeWithFields,
@@ -30,41 +31,62 @@ export function NodeTypeManager({
 	graphId,
 	orgId,
 	teamId,
+	fixedScope,
 }: {
-	graphId: string;
+	graphId?: string;
 	orgId?: string;
 	teamId?: string;
+	fixedScope?: "user" | "graph" | "team" | "org";
 }) {
 	const { typeList } = useNodeTypes();
 	const qc = useQueryClient();
 
+	const queryKey = graphId
+		? ["nodeTypes", graphId]
+		: ["nodeTypes", "team", teamId];
+
 	const invalidate = useCallback(
-		() => qc.invalidateQueries({ queryKey: ["nodeTypes", graphId] }),
-		[qc, graphId],
+		() => qc.invalidateQueries({ queryKey }),
+		[qc, queryKey],
 	);
 
 	// New-type form state.
 	const [newName, setNewName] = useState("");
 	const [newColor, setNewColor] = useState("#3b82f6");
 	const [newScope, setNewScope] = useState<"user" | "graph" | "team" | "org">(
-		"user",
+		fixedScope ?? "user",
 	);
 	const [newFields, setNewFields] = useState("");
 
 	const createMut = useMutation({
-		mutationFn: () =>
-			createNodeType({
-				data: {
-					graphId,
-					scope: newScope,
-					name: newName.trim(),
-					color: newColor,
-					fields: newFields
-						.split(",")
-						.map((s) => s.trim())
-						.filter(Boolean),
-				},
-			}),
+		mutationFn: () => {
+			const fields = newFields
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean);
+			if (graphId) {
+				return createNodeType({
+					data: {
+						graphId,
+						scope: newScope,
+						name: newName.trim(),
+						color: newColor,
+						fields,
+					},
+				});
+			}
+			if (teamId) {
+				return createNodeTypeForTeam({
+					data: {
+						teamId,
+						name: newName.trim(),
+						color: newColor,
+						fields,
+					},
+				});
+			}
+			throw new Error("graphId or teamId is required");
+		},
 		onSuccess: () => {
 			setNewName("");
 			setNewFields("");
@@ -124,24 +146,26 @@ export function NodeTypeManager({
 						className="text-sm"
 					/>
 				</div>
-				<Select
-					value={newScope}
-					onValueChange={(v) =>
-						setNewScope(v as "user" | "graph" | "team" | "org")
-					}
-				>
-					<SelectTrigger className="w-full">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
-						<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
-						{teamId && (
-							<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
-						)}
-						{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
-					</SelectContent>
-				</Select>
+				{!fixedScope && (
+					<Select
+						value={newScope}
+						onValueChange={(v) =>
+							setNewScope(v as "user" | "graph" | "team" | "org")
+						}
+					>
+						<SelectTrigger className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="user">{SCOPE_LABELS.user}</SelectItem>
+							<SelectItem value="graph">{SCOPE_LABELS.graph}</SelectItem>
+							{teamId && (
+								<SelectItem value="team">{SCOPE_LABELS.team}</SelectItem>
+							)}
+							{orgId && <SelectItem value="org">{SCOPE_LABELS.org}</SelectItem>}
+						</SelectContent>
+					</Select>
+				)}
 				<Input
 					value={newFields}
 					placeholder="メタデータキー (カンマ区切り)"

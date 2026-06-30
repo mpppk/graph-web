@@ -5,7 +5,9 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { SparklesIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { TeamCommandPalette } from "#/components/team/TeamCommandPalette";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent } from "#/components/ui/card";
 import { Input } from "#/components/ui/input";
@@ -61,10 +63,22 @@ function TeamGraphsPage() {
 		queryFn: () => listGraphs({ data: { teamId } }),
 	});
 
+	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [editingGraphId, setEditingGraphId] = useState<string | null>(null);
 	const [editingDraft, setEditingDraft] = useState("");
 	const nameInputRef = useRef<HTMLInputElement>(null);
 	const singleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+				e.preventDefault();
+				setPaletteOpen((v) => !v);
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, []);
 
 	const createGraphMutation = useMutation({
 		mutationFn: (name: string) => createGraph({ data: { name, teamId } }),
@@ -122,7 +136,19 @@ function TeamGraphsPage() {
 
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
-					<h2 className="text-xl font-semibold text-foreground">Graphs</h2>
+					<div className="flex items-center gap-1">
+						<h2 className="text-xl font-semibold text-foreground">Graphs</h2>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label="コマンドパレットを開く (⌘K)"
+							title="コマンドパレットを開く (⌘K)"
+							onClick={() => setPaletteOpen(true)}
+						>
+							<SparklesIcon />
+						</Button>
+					</div>
 					<Button
 						type="button"
 						disabled={createGraphMutation.isPending}
@@ -212,6 +238,17 @@ function TeamGraphsPage() {
 					</ul>
 				)}
 			</div>
+
+			<TeamCommandPalette
+				open={paletteOpen}
+				onOpenChange={setPaletteOpen}
+				onOpenSettings={() =>
+					navigate({
+						to: "/org/$orgId/team/$teamId/settings",
+						params: { orgId, teamId },
+					})
+				}
+			/>
 		</main>
 	);
 }
