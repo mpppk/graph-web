@@ -5,8 +5,11 @@ import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
+import { Skeleton } from "#/components/ui/skeleton";
 import { getSession } from "#/lib/graph-auth";
 import { createOrg, listOrgs } from "#/lib/org-server-fns";
+
+const SKELETON_ROWS = ["skeleton-1", "skeleton-2", "skeleton-3"];
 
 export const Route = createFileRoute("/orgs")({
 	beforeLoad: async () => {
@@ -22,7 +25,11 @@ export const Route = createFileRoute("/orgs")({
 });
 
 function OrgsPage() {
-	const { data: orgs, refetch } = useQuery({
+	const {
+		data: orgs,
+		isPending: orgsPending,
+		refetch,
+	} = useQuery({
 		queryKey: ["orgs"],
 		queryFn: () => listOrgs(),
 	});
@@ -44,21 +51,31 @@ function OrgsPage() {
 			<h1 className="mb-6 text-2xl font-bold">Organizations</h1>
 
 			<ul className="mb-8 space-y-2">
-				{orgs?.map((org) => (
-					<li key={org.id}>
-						<Link
-							to="/org/$orgId"
-							params={{ orgId: org.id }}
-							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
-						>
-							{org.name}
-						</Link>
-					</li>
-				))}
-				{orgs?.length === 0 && (
-					<li className="text-muted-foreground text-sm">
-						No organizations yet.
-					</li>
+				{orgsPending ? (
+					SKELETON_ROWS.map((key, i) => (
+						<li key={key} className="rounded-lg border border-border px-4 py-3">
+							<Skeleton className={i % 2 === 0 ? "h-5 w-1/3" : "h-5 w-1/2"} />
+						</li>
+					))
+				) : (
+					<>
+						{orgs?.map((org) => (
+							<li key={org.id}>
+								<Link
+									to="/org/$orgId"
+									params={{ orgId: org.id }}
+									className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
+								>
+									{org.name}
+								</Link>
+							</li>
+						))}
+						{orgs?.length === 0 && (
+							<li className="text-muted-foreground text-sm">
+								No organizations yet.
+							</li>
+						)}
+					</>
 				)}
 			</ul>
 

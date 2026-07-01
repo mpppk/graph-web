@@ -12,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { Skeleton } from "#/components/ui/skeleton";
 import { getSession } from "#/lib/graph-auth";
 import {
 	createTeam,
@@ -20,6 +21,8 @@ import {
 	listTeams,
 	setActiveOrganization,
 } from "#/lib/org-server-fns";
+
+const SKELETON_ROWS = ["skeleton-1", "skeleton-2", "skeleton-3"];
 
 export const Route = createFileRoute("/org/$orgId/")({
 	beforeLoad: async () => {
@@ -44,12 +47,20 @@ export const Route = createFileRoute("/org/$orgId/")({
 function OrgPage() {
 	const { orgId } = Route.useParams();
 
-	const { data: teams, refetch: refetchTeams } = useQuery({
+	const {
+		data: teams,
+		isPending: teamsPending,
+		refetch: refetchTeams,
+	} = useQuery({
 		queryKey: ["teams", orgId],
 		queryFn: () => listTeams({ data: { orgId } }),
 	});
 
-	const { data: org, refetch: refetchMembers } = useQuery({
+	const {
+		data: org,
+		isPending: membersPending,
+		refetch: refetchMembers,
+	} = useQuery({
 		queryKey: ["org-members", orgId],
 		queryFn: () => listMembers({ data: { orgId } }),
 	});
@@ -99,19 +110,29 @@ function OrgPage() {
 			<h1 className="mb-6 text-2xl font-bold">Teams</h1>
 
 			<ul className="mb-8 space-y-2">
-				{teams?.map((team) => (
-					<li key={team.id}>
-						<Link
-							to="/org/$orgId/team/$teamId/graphs"
-							params={{ orgId, teamId: team.id }}
-							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
-						>
-							{team.name}
-						</Link>
-					</li>
-				))}
-				{teams?.length === 0 && (
-					<li className="text-muted-foreground text-sm">No teams yet.</li>
+				{teamsPending ? (
+					SKELETON_ROWS.map((key, i) => (
+						<li key={key} className="rounded-lg border border-border px-4 py-3">
+							<Skeleton className={i % 2 === 0 ? "h-5 w-1/3" : "h-5 w-1/2"} />
+						</li>
+					))
+				) : (
+					<>
+						{teams?.map((team) => (
+							<li key={team.id}>
+								<Link
+									to="/org/$orgId/team/$teamId/graphs"
+									params={{ orgId, teamId: team.id }}
+									className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
+								>
+									{team.name}
+								</Link>
+							</li>
+						))}
+						{teams?.length === 0 && (
+							<li className="text-muted-foreground text-sm">No teams yet.</li>
+						)}
+					</>
 				)}
 			</ul>
 
@@ -145,14 +166,21 @@ function OrgPage() {
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">
 					<ul className="space-y-1 text-sm">
-						{org?.members?.map((m) => (
-							<li key={m.id} className="flex justify-between">
-								<span>
-									{m.user.name} ({m.user.email})
-								</span>
-								<span className="text-muted-foreground">{m.role}</span>
-							</li>
-						))}
+						{membersPending
+							? SKELETON_ROWS.map((key) => (
+									<li key={key} className="flex justify-between">
+										<Skeleton className="h-4 w-40" />
+										<Skeleton className="h-4 w-16" />
+									</li>
+								))
+							: org?.members?.map((m) => (
+									<li key={m.id} className="flex justify-between">
+										<span>
+											{m.user.name} ({m.user.email})
+										</span>
+										<span className="text-muted-foreground">{m.role}</span>
+									</li>
+								))}
 					</ul>
 
 					<div className="border-t border-border pt-4">
