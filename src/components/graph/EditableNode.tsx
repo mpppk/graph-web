@@ -3,6 +3,7 @@ import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateNodeLabel } from "#/lib/graph-server-fns";
 import { getContrastTextColor } from "#/lib/utils";
+import { useGraphMode } from "./GraphModeContext";
 import { useNodeTypes } from "./NodeTypeContext";
 
 export function EditableNode({ id, data, selected }: NodeProps) {
@@ -11,6 +12,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateNodeData } = useReactFlow();
 	const { colorMap } = useNodeTypes();
+	const readOnly = useGraphMode() === "read";
 	const nodeType = data.nodeType as string | null | undefined;
 	const bgColor = nodeType ? (colorMap[nodeType] ?? "#ffffff") : "#ffffff";
 	const textColor = getContrastTextColor(bgColor);
@@ -47,10 +49,11 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 	}, [data, id, updateNodeData]);
 
 	const handleDoubleClick = useCallback(() => {
+		if (readOnly) return;
 		setDraft(data.label as string);
 		setEditing(true);
 		setTimeout(() => inputRef.current?.select(), 0);
-	}, [data.label]);
+	}, [data.label, readOnly]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -73,7 +76,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 				selected ? "border-primary" : "border-border"
 			}`}
 		>
-			<Handle type="target" position={Position.Top} />
+			{!readOnly && <Handle type="target" position={Position.Top} />}
 			{editing ? (
 				<input
 					ref={inputRef}
@@ -84,6 +87,8 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 					className={`w-full bg-transparent text-center text-sm outline-none ${placeholderClass}`}
 					onKeyUp={(e) => e.stopPropagation()}
 				/>
+			) : readOnly ? (
+				<span className="w-full text-center">{data.label as string}</span>
 			) : (
 				<button
 					type="button"
@@ -93,7 +98,7 @@ export function EditableNode({ id, data, selected }: NodeProps) {
 					{data.label as string}
 				</button>
 			)}
-			<Handle type="source" position={Position.Bottom} />
+			{!readOnly && <Handle type="source" position={Position.Bottom} />}
 		</div>
 	);
 }

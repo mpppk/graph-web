@@ -52,6 +52,7 @@ export function GraphCommandPalette({
 	creationTypes,
 	layoutAlgorithms,
 	selectedAlgoId,
+	readOnly = false,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -62,6 +63,7 @@ export function GraphCommandPalette({
 	creationTypes: string[];
 	layoutAlgorithms: LayoutAlgorithm[];
 	selectedAlgoId: string;
+	readOnly?: boolean;
 }) {
 	const [mode, setMode] = useState<Mode>("command");
 	const [pages, setPages] = useState<string[]>([]);
@@ -245,28 +247,32 @@ export function GraphCommandPalette({
 											<SettingsIcon />
 											設定を開く
 										</CommandItem>
-										<CommandItem
-											keywords={["layout", "再配置", "レイアウト", "整列"]}
-											onSelect={() => {
-												setSearch("");
-												setPages((prev) => [...prev, "layout"]);
-											}}
-										>
-											<LayoutGridIcon />
-											再配置…
-											<ChevronRightIcon className="ml-auto" />
-										</CommandItem>
-										<CommandItem
-											keywords={["add", "node", "追加", "ノード"]}
-											onSelect={() => {
-												setSearch("");
-												setPages((prev) => [...prev, "addNode"]);
-											}}
-										>
-											<PlusIcon />
-											ノードを追加…
-											<ChevronRightIcon className="ml-auto" />
-										</CommandItem>
+										{!readOnly && (
+											<>
+												<CommandItem
+													keywords={["layout", "再配置", "レイアウト", "整列"]}
+													onSelect={() => {
+														setSearch("");
+														setPages((prev) => [...prev, "layout"]);
+													}}
+												>
+													<LayoutGridIcon />
+													再配置…
+													<ChevronRightIcon className="ml-auto" />
+												</CommandItem>
+												<CommandItem
+													keywords={["add", "node", "追加", "ノード"]}
+													onSelect={() => {
+														setSearch("");
+														setPages((prev) => [...prev, "addNode"]);
+													}}
+												>
+													<PlusIcon />
+													ノードを追加…
+													<ChevronRightIcon className="ml-auto" />
+												</CommandItem>
+											</>
+										)}
 									</CommandGroup>
 
 									{/* forceMount the group too: cmdk hides a group whose only

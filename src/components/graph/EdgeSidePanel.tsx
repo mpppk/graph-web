@@ -9,12 +9,14 @@ export function EdgeSidePanel({
 	onClose,
 	onDeleteEdge,
 	onUpdateLabel,
+	readOnly = false,
 }: {
 	edgeId: string;
 	edges: RFEdge[];
 	onClose: () => void;
 	onDeleteEdge: (id: string) => void;
 	onUpdateLabel: (edgeId: string, label: string) => void;
+	readOnly?: boolean;
 }) {
 	const edge = edges.find((e) => e.id === edgeId);
 	const currentLabel = (edge?.data?.label as string) ?? "";
@@ -53,31 +55,45 @@ export function EdgeSidePanel({
 					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Label
 					</p>
-					<Input
-						value={draft}
-						onChange={(e) => setDraft(e.target.value)}
-						onBlur={handleCommit}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") handleCommit();
-						}}
-						placeholder="エッジラベルを入力..."
-					/>
-					<p className="mt-1 text-xs text-muted-foreground">
-						ラベルをダブルクリックでキャンバス上から編集
-					</p>
+					{readOnly ? (
+						<div className="rounded-md border bg-muted px-3 py-2 text-sm text-foreground">
+							{currentLabel || (
+								<span className="italic text-muted-foreground">
+									（ラベルなし）
+								</span>
+							)}
+						</div>
+					) : (
+						<>
+							<Input
+								value={draft}
+								onChange={(e) => setDraft(e.target.value)}
+								onBlur={handleCommit}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleCommit();
+								}}
+								placeholder="エッジラベルを入力..."
+							/>
+							<p className="mt-1 text-xs text-muted-foreground">
+								ラベルをダブルクリックでキャンバス上から編集
+							</p>
+						</>
+					)}
 				</section>
 			</div>
 
-			<div className="border-t p-4">
-				<Button
-					type="button"
-					variant="destructive"
-					className="w-full"
-					onClick={() => onDeleteEdge(edgeId)}
-				>
-					Delete Edge
-				</Button>
-			</div>
+			{!readOnly && (
+				<div className="border-t p-4">
+					<Button
+						type="button"
+						variant="destructive"
+						className="w-full"
+						onClick={() => onDeleteEdge(edgeId)}
+					>
+						Delete Edge
+					</Button>
+				</div>
+			)}
 		</aside>
 	);
 }

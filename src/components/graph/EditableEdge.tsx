@@ -8,6 +8,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useRef, useState } from "react";
 import { updateEdgeLabel } from "#/lib/graph-server-fns";
+import { useGraphMode } from "./GraphModeContext";
 
 export function EditableEdge({
 	id,
@@ -23,6 +24,7 @@ export function EditableEdge({
 	const [draft, setDraft] = useState((data?.label as string) ?? "");
 	const inputRef = useRef<HTMLInputElement>(null);
 	const { updateEdgeData } = useReactFlow();
+	const readOnly = useGraphMode() === "read";
 
 	const mutation = useMutation({
 		mutationFn: (label: string) => updateEdgeLabel({ data: { id, label } }),
@@ -54,12 +56,13 @@ export function EditableEdge({
 
 	const handleDoubleClick = useCallback(
 		(e: React.MouseEvent) => {
+			if (readOnly) return;
 			e.stopPropagation();
 			setDraft((data?.label as string) ?? "");
 			setEditing(true);
 			setTimeout(() => inputRef.current?.select(), 0);
 		},
-		[data?.label],
+		[data?.label, readOnly],
 	);
 
 	const handleKeyDown = useCallback(
@@ -98,13 +101,19 @@ export function EditableEdge({
 							className="rounded border border-ring bg-background px-2 py-1 text-xs text-foreground shadow-sm outline-none focus:ring-1 focus:ring-ring"
 						/>
 					) : label ? (
-						<button
-							type="button"
-							onDoubleClick={handleDoubleClick}
-							className="cursor-pointer rounded border bg-background px-2 py-1 text-xs text-foreground shadow-sm hover:border-ring"
-						>
-							{label}
-						</button>
+						readOnly ? (
+							<span className="rounded border bg-background px-2 py-1 text-xs text-foreground shadow-sm">
+								{label}
+							</span>
+						) : (
+							<button
+								type="button"
+								onDoubleClick={handleDoubleClick}
+								className="cursor-pointer rounded border bg-background px-2 py-1 text-xs text-foreground shadow-sm hover:border-ring"
+							>
+								{label}
+							</button>
+						)
 					) : null}
 				</div>
 			</EdgeLabelRenderer>
