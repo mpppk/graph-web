@@ -26,6 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { Textarea } from "#/components/ui/textarea";
 import type { graphs } from "#/db/schema";
 import { getSession } from "#/lib/graph-auth";
 import {
@@ -84,6 +85,7 @@ function TeamGraphsPage() {
 	const [editingDraft, setEditingDraft] = useState("");
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [newGraphName, setNewGraphName] = useState("New Graph");
+	const [newGraphDescription, setNewGraphDescription] = useState("");
 	const [selectedTemplateId, setSelectedTemplateId] = useState("__none__");
 	const nameInputRef = useRef<HTMLInputElement>(null);
 	const singleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,9 +107,18 @@ function TeamGraphsPage() {
 	}, []);
 
 	const createGraphMutation = useMutation({
-		mutationFn: (vars: { name: string; templateId?: string }) =>
+		mutationFn: (vars: {
+			name: string;
+			description: string;
+			templateId?: string;
+		}) =>
 			createGraph({
-				data: { name: vars.name, teamId, templateId: vars.templateId },
+				data: {
+					name: vars.name,
+					description: vars.description,
+					teamId,
+					templateId: vars.templateId,
+				},
 			}),
 		onSuccess: (newGraph) => {
 			qc.invalidateQueries({ queryKey: ["team-graphs", teamId] });
@@ -125,11 +136,30 @@ function TeamGraphsPage() {
 		const name = newGraphName.trim() || "New Graph";
 		const templateId =
 			selectedTemplateId === "__none__" ? undefined : selectedTemplateId;
-		createGraphMutation.mutate({ name, templateId });
-	}, [createGraphMutation, newGraphName, selectedTemplateId]);
+		createGraphMutation.mutate({
+			name,
+			description: newGraphDescription,
+			templateId,
+		});
+	}, [
+		createGraphMutation,
+		newGraphName,
+		newGraphDescription,
+		selectedTemplateId,
+	]);
+
+	const handleTemplateChange = useCallback(
+		(value: string) => {
+			setSelectedTemplateId(value);
+			const tpl = templates.find((t) => t.id === value);
+			setNewGraphDescription(tpl?.description ?? "");
+		},
+		[templates],
+	);
 
 	const openCreateDialog = useCallback(() => {
 		setNewGraphName("New Graph");
+		setNewGraphDescription("");
 		setSelectedTemplateId("__none__");
 		setCreateDialogOpen(true);
 	}, []);
@@ -304,7 +334,7 @@ function TeamGraphsPage() {
 							<Label htmlFor="new-graph-template">テンプレート</Label>
 							<Select
 								value={selectedTemplateId}
-								onValueChange={setSelectedTemplateId}
+								onValueChange={handleTemplateChange}
 							>
 								<SelectTrigger id="new-graph-template" className="w-full">
 									<SelectValue />
@@ -322,6 +352,16 @@ function TeamGraphsPage() {
 							<p className="text-xs text-muted-foreground">
 								テンプレートを選ぶと、そのテンプレートのノードタイプだけが作成時に選択できます。
 							</p>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="new-graph-description">説明</Label>
+							<Textarea
+								id="new-graph-description"
+								value={newGraphDescription}
+								onChange={(e) => setNewGraphDescription(e.target.value)}
+								placeholder="このグラフの説明を入力…"
+								rows={3}
+							/>
 						</div>
 					</div>
 

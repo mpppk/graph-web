@@ -10,6 +10,7 @@ import {
 } from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import { Switch } from "#/components/ui/switch";
+import { Textarea } from "#/components/ui/textarea";
 import {
 	addTemplateNodeType,
 	createTemplate,
@@ -20,6 +21,7 @@ import {
 	removeTemplateNodeType,
 	renameTemplate,
 	type TemplateWithNodeTypes,
+	updateTemplateDescription,
 } from "#/lib/graph-server-fns";
 
 // Manage graph templates for an org or a team. A template groups an allowlist
@@ -52,15 +54,22 @@ export function TemplateManager({
 	});
 
 	const [newName, setNewName] = useState("");
+	const [newDescription, setNewDescription] = useState("");
 	const [dialogOpen, setDialogOpen] = useState(false);
 
 	const createMut = useMutation({
 		mutationFn: () =>
 			createTemplate({
-				data: { ownerType, ownerId, name: newName.trim() },
+				data: {
+					ownerType,
+					ownerId,
+					name: newName.trim(),
+					description: newDescription.trim(),
+				},
 			}),
 		onSuccess: () => {
 			setNewName("");
+			setNewDescription("");
 			setDialogOpen(false);
 			invalidate();
 		},
@@ -69,6 +78,12 @@ export function TemplateManager({
 	const renameMut = useMutation({
 		mutationFn: (data: { id: string; name: string }) =>
 			renameTemplate({ data }),
+		onSuccess: invalidate,
+	});
+
+	const describeMut = useMutation({
+		mutationFn: (data: { id: string; description: string }) =>
+			updateTemplateDescription({ data }),
 		onSuccess: invalidate,
 	});
 
@@ -83,7 +98,10 @@ export function TemplateManager({
 	}, [newName, createMut]);
 
 	const handleOpenChange = (open: boolean) => {
-		if (!open) setNewName("");
+		if (!open) {
+			setNewName("");
+			setNewDescription("");
+		}
 		setDialogOpen(open);
 	};
 
@@ -97,6 +115,9 @@ export function TemplateManager({
 					key={t.id}
 					template={t}
 					onRename={(name) => renameMut.mutate({ id: t.id, name })}
+					onDescribe={(description) =>
+						describeMut.mutate({ id: t.id, description })
+					}
 					onDelete={() => deleteMut.mutate(t.id)}
 					onChanged={invalidate}
 				/>
@@ -129,6 +150,14 @@ export function TemplateManager({
 						autoFocus
 					/>
 
+					<Textarea
+						value={newDescription}
+						placeholder="既定の説明（任意）"
+						onChange={(e) => setNewDescription(e.target.value)}
+						className="text-sm"
+						rows={3}
+					/>
+
 					<DialogFooter>
 						<Button
 							type="button"
@@ -154,15 +183,20 @@ export function TemplateManager({
 function TemplateRow({
 	template,
 	onRename,
+	onDescribe,
 	onDelete,
 	onChanged,
 }: {
 	template: TemplateWithNodeTypes;
 	onRename: (name: string) => void;
+	onDescribe: (description: string) => void;
 	onDelete: () => void;
 	onChanged: () => void;
 }) {
 	const [nameDraft, setNameDraft] = useState(template.name);
+	const [descriptionDraft, setDescriptionDraft] = useState(
+		template.description,
+	);
 	const [expanded, setExpanded] = useState(false);
 
 	const selectedIds = new Set(template.nodeTypes.map((nt) => nt.id));
@@ -190,6 +224,10 @@ function TemplateRow({
 		const trimmed = nameDraft.trim();
 		if (trimmed && trimmed !== template.name) onRename(trimmed);
 		else setNameDraft(template.name);
+	};
+
+	const commitDescription = () => {
+		if (descriptionDraft !== template.description) onDescribe(descriptionDraft);
 	};
 
 	return (
@@ -225,6 +263,14 @@ function TemplateRow({
 					🗑
 				</Button>
 			</div>
+			<Textarea
+				value={descriptionDraft}
+				placeholder="既定の説明（任意）"
+				onChange={(e) => setDescriptionDraft(e.target.value)}
+				onBlur={commitDescription}
+				className="text-sm"
+				rows={2}
+			/>
 			<p className="text-[10px] uppercase tracking-wide text-muted-foreground">
 				{selectedIds.size} タイプ
 			</p>
