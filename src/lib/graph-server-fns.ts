@@ -7,10 +7,12 @@ import {
 	edges,
 	graphCreationTypeSettings,
 	graphs,
+	graphTemplates,
 	nodeMetadata,
 	nodes,
 	nodeTypeFields,
 	nodeTypes,
+	templateNodeTypes,
 } from "#/db/schema";
 import { auth } from "#/lib/auth";
 import { requireUserId } from "#/lib/graph-auth-internal";
@@ -25,18 +27,24 @@ const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 	{ name: "Solution", color: "#14b8a6" },
 ];
 
+// Verify the user is a member of the organization.
+async function assertOrgAccess(orgId: string, userId: string) {
+	const org = await auth.api.getFullOrganization({
+		headers: getRequest().headers,
+		query: { organizationId: orgId },
+	});
+	if (!org?.members?.some((m) => m.userId === userId))
+		throw new Error("Forbidden");
+	return org;
+}
+
 async function assertTeamAccess(teamId: string, userId: string) {
 	const [team] = await db
 		.select()
 		.from(authSchema.team)
 		.where(eq(authSchema.team.id, teamId));
 	if (!team) throw new Error("Team not found");
-	const org = await auth.api.getFullOrganization({
-		headers: getRequest().headers,
-		query: { organizationId: team.organizationId },
-	});
-	const isMember = org?.members?.some((m) => m.userId === userId);
-	if (!isMember) throw new Error("Forbidden");
+	await assertOrgAccess(team.organizationId, userId);
 	return team;
 }
 
@@ -108,12 +116,7 @@ async function requireOwnedNodeType(typeId: string, userId: string) {
 		if (!org?.members?.some((m) => m.userId === userId))
 			throw new Error("Forbidden");
 	} else if (type.scope === "org") {
-		const org = await auth.api.getFullOrganization({
-			headers: getRequest().headers,
-			query: { organizationId: type.scopeId },
-		});
-		if (!org?.members?.some((m) => m.userId === userId))
-			throw new Error("Forbidden");
+		await assertOrgAccess(type.scopeId, userId);
 	} else {
 		throw new Error("Unsupported node type scope");
 	}
@@ -192,6 +195,74 @@ async function seedNodeTypeTemplate(
 	return fields.map((f) => f.key);
 }
 
+// Apply a template to a freshly created graph by seeding creation-type
+// overrides: every node type applicable to the graph whose name is NOT in the
+// template's allowlist is disabled for node creation. Allowlisted types stay
+// enabled by default (no override row needed).
+async function applyTemplateToGraph(
+	graph: typeof graphs.$inferSelect,
+	templateId: string,
+) {
+	const [tpl] = await db
+		.select()
+		.from(graphTemplates)
+		.where(eq(graphTemplates.id, templateId));
+	if (!tpl) return;
+
+	const allow = await db
+		.select({ name: nodeTypes.name })
+		.from(templateNodeTypes)
+		.innerJoin(nodeTypes, eq(templateNodeTypes.nodeTypeId, nodeTypes.id))
+		.where(eq(templateNodeTypes.templateId, templateId));
+	const allowNames = new Set(allow.map((a) => a.name));
+
+	// Ensure the owner's default user-scope types exist so they're considered.
+	await ensureDefaultNodeTypes(graph.userId);
+
+	const conditions: ReturnType<typeof and>[] = [
+		and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
+	];
+	if (graph.teamId) {
+		const [graphTeam] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, graph.teamId));
+		if (graphTeam) {
+			conditions.push(
+				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
+			);
+			conditions.push(
+				and(
+					eq(nodeTypes.scope, "org"),
+					eq(nodeTypes.scopeId, graphTeam.organizationId),
+				),
+			);
+		}
+	}
+
+	const candidates = await db
+		.select({ name: nodeTypes.name })
+		.from(nodeTypes)
+		.where(or(...(conditions as Parameters<typeof or>)));
+	const disableNames = [...new Set(candidates.map((c) => c.name))].filter(
+		(n) => !allowNames.has(n),
+	);
+
+	if (disableNames.length) {
+		await db
+			.insert(graphCreationTypeSettings)
+			.values(
+				disableNames.map((typeName) => ({
+					id: crypto.randomUUID(),
+					graphId: graph.id,
+					typeName,
+					enabled: false,
+				})),
+			)
+			.onConflictDoNothing();
+	}
+}
+
 // ── Graph operations ──────────────────────────────────────────────────────────
 
 export const listGraphs = createServerFn({ method: "GET" })
@@ -210,7 +281,12 @@ export const listGraphs = createServerFn({ method: "GET" })
 
 export const createGraph = createServerFn({ method: "POST" })
 	.inputValidator(
-		(data: { name: string; description?: string; teamId?: string }) => data,
+		(data: {
+			name: string;
+			description?: string;
+			teamId?: string;
+			templateId?: string;
+		}) => data,
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
@@ -219,10 +295,12 @@ export const createGraph = createServerFn({ method: "POST" })
 			id,
 			userId,
 			teamId: data.teamId ?? null,
+			templateId: data.templateId ?? null,
 			name: data.name,
 			description: data.description ?? "",
 		});
 		const [graph] = await db.select().from(graphs).where(eq(graphs.id, id));
+		if (data.templateId) await applyTemplateToGraph(graph, data.templateId);
 		return graph;
 	});
 
@@ -651,6 +729,77 @@ export const createNodeTypeForTeam = createServerFn({ method: "POST" })
 		return { id };
 	});
 
+export const listNodeTypesForOrg = createServerFn({ method: "GET" })
+	.inputValidator((data: { orgId: string }) => data)
+	.handler(async ({ data }): Promise<NodeTypeWithFields[]> => {
+		const userId = await requireUserId();
+		await assertOrgAccess(data.orgId, userId);
+
+		const types = await db
+			.select()
+			.from(nodeTypes)
+			.where(
+				and(eq(nodeTypes.scope, "org"), eq(nodeTypes.scopeId, data.orgId)),
+			);
+
+		const typeIds = types.map((t) => t.id);
+		const fields = typeIds.length
+			? await db
+					.select()
+					.from(nodeTypeFields)
+					.where(inArray(nodeTypeFields.nodeTypeId, typeIds))
+			: [];
+
+		return types.map((t) => ({
+			id: t.id,
+			scope: t.scope,
+			scopeId: t.scopeId,
+			name: t.name,
+			color: t.color,
+			fields: fields
+				.filter((f) => f.nodeTypeId === t.id)
+				.sort((a, b) => a.position - b.position)
+				.map((f) => ({ id: f.id, key: f.key, position: f.position })),
+		}));
+	});
+
+export const createNodeTypeForOrg = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: { orgId: string; name: string; color: string; fields?: string[] }) =>
+			data,
+	)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertOrgAccess(data.orgId, userId);
+
+		const name = data.name.trim();
+		if (!name) throw new Error("Name is required");
+
+		const id = crypto.randomUUID();
+		await db.insert(nodeTypes).values({
+			id,
+			scope: "org",
+			scopeId: data.orgId,
+			name,
+			color: data.color,
+		});
+
+		const keys = [
+			...new Set((data.fields ?? []).map((k) => k.trim()).filter(Boolean)),
+		];
+		if (keys.length) {
+			await db.insert(nodeTypeFields).values(
+				keys.map((key, i) => ({
+					id: crypto.randomUUID(),
+					nodeTypeId: id,
+					key,
+					position: i,
+				})),
+			);
+		}
+		return { id };
+	});
+
 export const createNodeType = createServerFn({ method: "POST" })
 	.inputValidator(
 		(data: {
@@ -913,5 +1062,226 @@ export const setCreationTypeEnabled = createServerFn({ method: "POST" })
 				],
 				set: { enabled: data.enabled },
 			});
+		return { success: true };
+	});
+
+// ── Graph templates ───────────────────────────────────────────────────────────
+
+export type TemplateWithNodeTypes = {
+	id: string;
+	ownerType: "org" | "team";
+	ownerId: string;
+	name: string;
+	nodeTypes: { id: string; name: string; color: string }[];
+};
+
+// Resolve a template the user is allowed to modify (owner org/team member).
+async function requireOwnedTemplate(templateId: string, userId: string) {
+	const [tpl] = await db
+		.select()
+		.from(graphTemplates)
+		.where(eq(graphTemplates.id, templateId));
+	if (!tpl) throw new Error("Template not found");
+	if (tpl.ownerType === "team") await assertTeamAccess(tpl.ownerId, userId);
+	else await assertOrgAccess(tpl.ownerId, userId);
+	return tpl;
+}
+
+// The node types selectable for a template: team owner → team-scope + parent
+// org-scope; org owner → org-scope.
+async function selectableNodeTypesForTemplate(
+	tpl: typeof graphTemplates.$inferSelect,
+) {
+	const conditions: ReturnType<typeof and>[] = [];
+	if (tpl.ownerType === "team") {
+		const [team] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, tpl.ownerId));
+		if (team) {
+			conditions.push(
+				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, tpl.ownerId)),
+			);
+			conditions.push(
+				and(
+					eq(nodeTypes.scope, "org"),
+					eq(nodeTypes.scopeId, team.organizationId),
+				),
+			);
+		}
+	} else {
+		conditions.push(
+			and(eq(nodeTypes.scope, "org"), eq(nodeTypes.scopeId, tpl.ownerId)),
+		);
+	}
+	if (!conditions.length) return [];
+	return db
+		.select()
+		.from(nodeTypes)
+		.where(or(...(conditions as Parameters<typeof or>)));
+}
+
+async function listTemplatesByOwner(
+	ownerType: "org" | "team",
+	ownerId: string,
+): Promise<TemplateWithNodeTypes[]> {
+	const templates = await db
+		.select()
+		.from(graphTemplates)
+		.where(
+			and(
+				eq(graphTemplates.ownerType, ownerType),
+				eq(graphTemplates.ownerId, ownerId),
+			),
+		);
+
+	const templateIds = templates.map((t) => t.id);
+	const links = templateIds.length
+		? await db
+				.select({
+					templateId: templateNodeTypes.templateId,
+					id: nodeTypes.id,
+					name: nodeTypes.name,
+					color: nodeTypes.color,
+				})
+				.from(templateNodeTypes)
+				.innerJoin(nodeTypes, eq(templateNodeTypes.nodeTypeId, nodeTypes.id))
+				.where(inArray(templateNodeTypes.templateId, templateIds))
+		: [];
+
+	return templates.map((t) => ({
+		id: t.id,
+		ownerType: t.ownerType,
+		ownerId: t.ownerId,
+		name: t.name,
+		nodeTypes: links
+			.filter((l) => l.templateId === t.id)
+			.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+	}));
+}
+
+export const listTemplatesForTeam = createServerFn({ method: "GET" })
+	.inputValidator((data: { teamId: string }) => data)
+	.handler(async ({ data }): Promise<TemplateWithNodeTypes[]> => {
+		const userId = await requireUserId();
+		await assertTeamAccess(data.teamId, userId);
+		return listTemplatesByOwner("team", data.teamId);
+	});
+
+export const listTemplatesForOrg = createServerFn({ method: "GET" })
+	.inputValidator((data: { orgId: string }) => data)
+	.handler(async ({ data }): Promise<TemplateWithNodeTypes[]> => {
+		const userId = await requireUserId();
+		await assertOrgAccess(data.orgId, userId);
+		return listTemplatesByOwner("org", data.orgId);
+	});
+
+// Templates a team graph can be created from: the team's own templates plus the
+// parent organization's templates.
+export const listTemplatesForTeamCreation = createServerFn({ method: "GET" })
+	.inputValidator((data: { teamId: string }) => data)
+	.handler(async ({ data }): Promise<TemplateWithNodeTypes[]> => {
+		const userId = await requireUserId();
+		const team = await assertTeamAccess(data.teamId, userId);
+		const [orgTemplates, teamTemplates] = await Promise.all([
+			listTemplatesByOwner("org", team.organizationId),
+			listTemplatesByOwner("team", data.teamId),
+		]);
+		return [...orgTemplates, ...teamTemplates];
+	});
+
+export const createTemplate = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: { ownerType: "org" | "team"; ownerId: string; name: string }) =>
+			data,
+	)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		if (data.ownerType === "team") await assertTeamAccess(data.ownerId, userId);
+		else await assertOrgAccess(data.ownerId, userId);
+
+		const name = data.name.trim();
+		if (!name) throw new Error("Name is required");
+
+		const id = crypto.randomUUID();
+		await db.insert(graphTemplates).values({
+			id,
+			ownerType: data.ownerType,
+			ownerId: data.ownerId,
+			name,
+		});
+		return { id };
+	});
+
+export const renameTemplate = createServerFn({ method: "POST" })
+	.inputValidator((data: { id: string; name: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await requireOwnedTemplate(data.id, userId);
+		const name = data.name.trim();
+		if (!name) throw new Error("Name is required");
+		await db
+			.update(graphTemplates)
+			.set({ name })
+			.where(eq(graphTemplates.id, data.id));
+		return { success: true };
+	});
+
+export const deleteTemplate = createServerFn({ method: "POST" })
+	.inputValidator((data: { id: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await requireOwnedTemplate(data.id, userId);
+		await db.delete(graphTemplates).where(eq(graphTemplates.id, data.id));
+		return { success: true };
+	});
+
+// List the node types selectable for a template (the pool the allowlist is
+// chosen from).
+export const listSelectableNodeTypes = createServerFn({ method: "GET" })
+	.inputValidator((data: { templateId: string }) => data)
+	.handler(
+		async ({
+			data,
+		}): Promise<{ id: string; name: string; color: string }[]> => {
+			const userId = await requireUserId();
+			const tpl = await requireOwnedTemplate(data.templateId, userId);
+			const types = await selectableNodeTypesForTemplate(tpl);
+			return types.map((t) => ({ id: t.id, name: t.name, color: t.color }));
+		},
+	);
+
+export const addTemplateNodeType = createServerFn({ method: "POST" })
+	.inputValidator((data: { templateId: string; nodeTypeId: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		const tpl = await requireOwnedTemplate(data.templateId, userId);
+		const selectable = await selectableNodeTypesForTemplate(tpl);
+		if (!selectable.some((t) => t.id === data.nodeTypeId))
+			throw new Error("Node type is not selectable for this template");
+		await db
+			.insert(templateNodeTypes)
+			.values({
+				id: crypto.randomUUID(),
+				templateId: data.templateId,
+				nodeTypeId: data.nodeTypeId,
+			})
+			.onConflictDoNothing();
+		return { success: true };
+	});
+
+export const removeTemplateNodeType = createServerFn({ method: "POST" })
+	.inputValidator((data: { templateId: string; nodeTypeId: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await requireOwnedTemplate(data.templateId, userId);
+		await db
+			.delete(templateNodeTypes)
+			.where(
+				and(
+					eq(templateNodeTypes.templateId, data.templateId),
+					eq(templateNodeTypes.nodeTypeId, data.nodeTypeId),
+				),
+			);
 		return { success: true };
 	});

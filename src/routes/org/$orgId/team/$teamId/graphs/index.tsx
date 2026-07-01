@@ -10,13 +10,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TeamCommandPalette } from "#/components/team/TeamCommandPalette";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent } from "#/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 import type { graphs } from "#/db/schema";
 import { getSession } from "#/lib/graph-auth";
 import {
 	createGraph,
 	deleteGraph,
 	listGraphs,
+	listTemplatesForTeamCreation,
 	updateGraphName,
 } from "#/lib/graph-server-fns";
 import {
@@ -66,8 +82,16 @@ function TeamGraphsPage() {
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [editingGraphId, setEditingGraphId] = useState<string | null>(null);
 	const [editingDraft, setEditingDraft] = useState("");
+	const [createDialogOpen, setCreateDialogOpen] = useState(false);
+	const [newGraphName, setNewGraphName] = useState("New Graph");
+	const [selectedTemplateId, setSelectedTemplateId] = useState("__none__");
 	const nameInputRef = useRef<HTMLInputElement>(null);
 	const singleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const { data: templates = [] } = useQuery({
+		queryKey: ["templates", "teamCreation", teamId],
+		queryFn: () => listTemplatesForTeamCreation({ data: { teamId } }),
+	});
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,9 +105,13 @@ function TeamGraphsPage() {
 	}, []);
 
 	const createGraphMutation = useMutation({
-		mutationFn: (name: string) => createGraph({ data: { name, teamId } }),
+		mutationFn: (vars: { name: string; templateId?: string }) =>
+			createGraph({
+				data: { name: vars.name, teamId, templateId: vars.templateId },
+			}),
 		onSuccess: (newGraph) => {
 			qc.invalidateQueries({ queryKey: ["team-graphs", teamId] });
+			setCreateDialogOpen(false);
 			if (newGraph) {
 				setEditingDraft(newGraph.name);
 				setEditingGraphId(newGraph.id);
@@ -91,6 +119,20 @@ function TeamGraphsPage() {
 			}
 		},
 	});
+
+	const handleCreateGraph = useCallback(() => {
+		if (createGraphMutation.isPending) return;
+		const name = newGraphName.trim() || "New Graph";
+		const templateId =
+			selectedTemplateId === "__none__" ? undefined : selectedTemplateId;
+		createGraphMutation.mutate({ name, templateId });
+	}, [createGraphMutation, newGraphName, selectedTemplateId]);
+
+	const openCreateDialog = useCallback(() => {
+		setNewGraphName("New Graph");
+		setSelectedTemplateId("__none__");
+		setCreateDialogOpen(true);
+	}, []);
 
 	const updateNameMutation = useMutation({
 		mutationFn: ({ id, name }: { id: string; name: string }) =>
@@ -152,7 +194,7 @@ function TeamGraphsPage() {
 					<Button
 						type="button"
 						disabled={createGraphMutation.isPending}
-						onClick={() => createGraphMutation.mutate("New Graph")}
+						onClick={openCreateDialog}
 					>
 						{createGraphMutation.isPending ? "Creating…" : "+ New Graph"}
 					</Button>
@@ -238,6 +280,69 @@ function TeamGraphsPage() {
 					</ul>
 				)}
 			</div>
+
+			<Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>新規グラフ</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-3">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="new-graph-name">グラフ名</Label>
+							<Input
+								id="new-graph-name"
+								value={newGraphName}
+								onChange={(e) => setNewGraphName(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleCreateGraph();
+								}}
+								autoFocus
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="new-graph-template">テンプレート</Label>
+							<Select
+								value={selectedTemplateId}
+								onValueChange={setSelectedTemplateId}
+							>
+								<SelectTrigger id="new-graph-template" className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__none__">なし</SelectItem>
+									{templates.map((t) => (
+										<SelectItem key={t.id} value={t.id}>
+											{t.name}
+											{t.ownerType === "org" ? "（組織）" : "（チーム）"}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<p className="text-xs text-muted-foreground">
+								テンプレートを選ぶと、そのテンプレートのノードタイプだけが作成時に選択できます。
+							</p>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setCreateDialogOpen(false)}
+						>
+							キャンセル
+						</Button>
+						<Button
+							type="button"
+							disabled={createGraphMutation.isPending}
+							onClick={handleCreateGraph}
+						>
+							{createGraphMutation.isPending ? "作成中…" : "作成"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			<TeamCommandPalette
 				open={paletteOpen}

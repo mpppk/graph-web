@@ -107,7 +107,14 @@ function OrgPage() {
 				</span>
 			</div>
 
-			<h1 className="mb-6 text-2xl font-bold">Teams</h1>
+			<div className="mb-6 flex items-center justify-between">
+				<h1 className="text-2xl font-bold">Teams</h1>
+				<Button asChild variant="outline" size="sm">
+					<Link to="/org/$orgId/settings" params={{ orgId }}>
+						組織設定
+					</Link>
+				</Button>
+			</div>
 
 			<ul className="mb-8 space-y-2">
 				{teamsPending ? (

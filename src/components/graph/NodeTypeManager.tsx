@@ -19,6 +19,7 @@ import {
 import {
 	addNodeTypeField,
 	createNodeType,
+	createNodeTypeForOrg,
 	createNodeTypeForTeam,
 	deleteNodeType,
 	deleteNodeTypeField,
@@ -50,7 +51,9 @@ export function NodeTypeManager({
 
 	const queryKey = graphId
 		? ["nodeTypes", graphId]
-		: ["nodeTypes", "team", teamId];
+		: teamId
+			? ["nodeTypes", "team", teamId]
+			: ["nodeTypes", "org", orgId];
 
 	const invalidate = useCallback(
 		() => qc.invalidateQueries({ queryKey }),
@@ -106,7 +109,17 @@ export function NodeTypeManager({
 					},
 				});
 			}
-			throw new Error("graphId or teamId is required");
+			if (orgId) {
+				return createNodeTypeForOrg({
+					data: {
+						orgId,
+						name: newName.trim(),
+						color: newColor,
+						fields,
+					},
+				});
+			}
+			throw new Error("graphId, teamId, or orgId is required");
 		},
 		onSuccess: () => {
 			resetForm();

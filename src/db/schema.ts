@@ -11,6 +11,9 @@ export const graphs = sqliteTable("graphs", {
 	id: text("id").primaryKey(),
 	userId: text("user_id").notNull(),
 	teamId: text("team_id"),
+	// The template the graph was created from, if any. Kept for traceability;
+	// applying a template seeds graphCreationTypeSettings at creation time.
+	templateId: text("template_id"),
 	name: text("name").notNull(),
 	description: text("description").notNull().default(""),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
@@ -121,6 +124,50 @@ export const nodeTypeFields = sqliteTable(
 		uniqueIndex("node_type_fields_node_type_id_key_unique").on(
 			t.nodeTypeId,
 			t.key,
+		),
+	],
+);
+
+// Graph creation templates. A template is owned by an org or a team and, for
+// now, groups a curated list of available node types (see templateNodeTypes).
+// More resource kinds may attach to a template in the future.
+export const graphTemplates = sqliteTable(
+	"graph_templates",
+	{
+		id: text("id").primaryKey(),
+		// "org" → ownerId is an organizationId, "team" → ownerId is a teamId.
+		ownerType: text("owner_type", { enum: ["org", "team"] }).notNull(),
+		ownerId: text("owner_id").notNull(),
+		name: text("name").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(t) => [
+		uniqueIndex("graph_templates_owner_name_unique").on(
+			t.ownerType,
+			t.ownerId,
+			t.name,
+		),
+	],
+);
+
+// The node types made available by a template (an allowlist referencing
+// existing node types within the template owner's scope).
+export const templateNodeTypes = sqliteTable(
+	"template_node_types",
+	{
+		id: text("id").primaryKey(),
+		templateId: text("template_id")
+			.notNull()
+			.references(() => graphTemplates.id, { onDelete: "cascade" }),
+		nodeTypeId: text("node_type_id")
+			.notNull()
+			.references(() => nodeTypes.id, { onDelete: "cascade" }),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(t) => [
+		uniqueIndex("template_node_types_template_node_unique").on(
+			t.templateId,
+			t.nodeTypeId,
 		),
 	],
 );

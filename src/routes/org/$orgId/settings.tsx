@@ -6,11 +6,11 @@ import { NodeTypeManager } from "#/components/graph/NodeTypeManager";
 import { TemplateManager } from "#/components/graph/TemplateManager";
 import { Button } from "#/components/ui/button";
 import { getSession } from "#/lib/graph-auth";
-import { listNodeTypesForTeam } from "#/lib/graph-server-fns";
-import { setActiveOrganization, setActiveTeam } from "#/lib/org-server-fns";
+import { listNodeTypesForOrg } from "#/lib/graph-server-fns";
+import { setActiveOrganization } from "#/lib/org-server-fns";
 
-export const Route = createFileRoute("/org/$orgId/team/$teamId/settings")({
-	component: TeamSettingsPage,
+export const Route = createFileRoute("/org/$orgId/settings")({
+	component: OrgSettingsPage,
 	beforeLoad: async () => {
 		const session = await getSession();
 		if (!session) {
@@ -18,30 +18,28 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/settings")({
 		}
 	},
 	loader: async ({ params }) => {
-		await Promise.all([
-			setActiveOrganization({ data: { orgId: params.orgId } }).catch(() => {}),
-			setActiveTeam({ data: { teamId: params.teamId } }).catch(() => {}),
-		]);
+		await setActiveOrganization({ data: { orgId: params.orgId } }).catch(
+			() => {},
+		);
 
-		const nodeTypeList = await listNodeTypesForTeam({
-			data: { teamId: params.teamId },
+		const nodeTypeList = await listNodeTypesForOrg({
+			data: { orgId: params.orgId },
 		});
 
 		return {
 			initialNodeTypes: nodeTypeList,
 			orgId: params.orgId,
-			teamId: params.teamId,
 		};
 	},
 });
 
-function TeamSettingsPage() {
-	const { initialNodeTypes, orgId, teamId } = Route.useLoaderData();
+function OrgSettingsPage() {
+	const { initialNodeTypes, orgId } = Route.useLoaderData();
 	const navigate = useNavigate();
 
 	const { data: nodeTypeList = [] } = useQuery({
-		queryKey: ["nodeTypes", "team", teamId],
-		queryFn: () => listNodeTypesForTeam({ data: { teamId } }),
+		queryKey: ["nodeTypes", "org", orgId],
+		queryFn: () => listNodeTypesForOrg({ data: { orgId } }),
 		initialData: initialNodeTypes,
 	});
 
@@ -53,18 +51,13 @@ function TeamSettingsPage() {
 						type="button"
 						variant="ghost"
 						size="sm"
-						onClick={() =>
-							navigate({
-								to: "/org/$orgId/team/$teamId/graphs",
-								params: { orgId, teamId },
-							})
-						}
+						onClick={() => navigate({ to: "/org/$orgId", params: { orgId } })}
 					>
 						<ArrowLeftIcon className="size-4" />
-						グラフ一覧へ戻る
+						組織トップへ戻る
 					</Button>
 					<h1 className="min-w-0 truncate font-semibold text-foreground">
-						チーム設定
+						組織設定
 					</h1>
 				</header>
 
@@ -76,10 +69,10 @@ function TeamSettingsPage() {
 									ノードタイプ管理
 								</h2>
 								<p className="text-xs text-muted-foreground">
-									チーム共通のノードタイプと、そのメタデータ項目を管理します。
+									組織共通のノードタイプと、そのメタデータ項目を管理します。
 								</p>
 							</div>
-							<NodeTypeManager teamId={teamId} fixedScope="team" />
+							<NodeTypeManager orgId={orgId} fixedScope="org" />
 						</section>
 
 						<section className="space-y-3">
@@ -88,10 +81,10 @@ function TeamSettingsPage() {
 									テンプレート管理
 								</h2>
 								<p className="text-xs text-muted-foreground">
-									グラフ作成時に使えるチームテンプレートと、その利用可能なノードタイプを管理します。
+									グラフ作成時に使える組織テンプレートと、その利用可能なノードタイプを管理します。
 								</p>
 							</div>
-							<TemplateManager ownerType="team" ownerId={teamId} />
+							<TemplateManager ownerType="org" ownerId={orgId} />
 						</section>
 					</div>
 				</div>
