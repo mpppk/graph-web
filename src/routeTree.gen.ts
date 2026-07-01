@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as GraphsGraphIdIndexRouteImport } from './routes/graphs/$graphId/index'
+import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
 import { Route as GraphsGraphIdSettingsRouteImport } from './routes/graphs/$graphId/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdSettingsRouteImport } from './routes/org/$orgId/team/$teamId/settings'
@@ -56,6 +57,11 @@ const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
 const GraphsGraphIdIndexRoute = GraphsGraphIdIndexRouteImport.update({
   id: '/graphs/$graphId/',
   path: '/graphs/$graphId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrgOrgIdSettingsRoute = OrgOrgIdSettingsRouteImport.update({
+  id: '/org/$orgId/settings',
+  path: '/org/$orgId/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphsGraphIdSettingsRoute = GraphsGraphIdSettingsRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId/': typeof GraphsGraphIdIndexRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId': typeof GraphsGraphIdIndexRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId/': typeof GraphsGraphIdIndexRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/org/$orgId/settings'
     | '/graphs/$graphId/'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/graphs'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/org/$orgId/settings'
     | '/graphs/$graphId'
     | '/org/$orgId'
     | '/org/$orgId/team/$teamId/settings'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/org/$orgId/settings'
     | '/graphs/$graphId/'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
@@ -195,6 +207,7 @@ export interface RootRouteChildren {
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   GraphsGraphIdSettingsRoute: typeof GraphsGraphIdSettingsRoute
+  OrgOrgIdSettingsRoute: typeof OrgOrgIdSettingsRoute
   GraphsGraphIdIndexRoute: typeof GraphsGraphIdIndexRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdTeamTeamIdSettingsRoute: typeof OrgOrgIdTeamTeamIdSettingsRoute
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GraphsGraphIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/$orgId/settings': {
+      id: '/org/$orgId/settings'
+      path: '/org/$orgId/settings'
+      fullPath: '/org/$orgId/settings'
+      preLoaderRoute: typeof OrgOrgIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/graphs/$graphId/settings': {
       id: '/graphs/$graphId/settings'
       path: '/graphs/$graphId/settings'
@@ -307,6 +327,7 @@ const rootRouteChildren: RootRouteChildren = {
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   GraphsGraphIdSettingsRoute: GraphsGraphIdSettingsRoute,
+  OrgOrgIdSettingsRoute: OrgOrgIdSettingsRoute,
   GraphsGraphIdIndexRoute: GraphsGraphIdIndexRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
   OrgOrgIdTeamTeamIdSettingsRoute: OrgOrgIdTeamTeamIdSettingsRoute,
