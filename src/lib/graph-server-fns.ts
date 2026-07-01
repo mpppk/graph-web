@@ -327,6 +327,22 @@ export const updateGraphName = createServerFn({ method: "POST" })
 		return graph;
 	});
 
+export const updateGraphDescription = createServerFn({ method: "POST" })
+	.inputValidator((data: { id: string; description: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertGraphAccess(data.id, userId);
+		await db
+			.update(graphs)
+			.set({ description: data.description })
+			.where(eq(graphs.id, data.id));
+		const [graph] = await db
+			.select()
+			.from(graphs)
+			.where(eq(graphs.id, data.id));
+		return graph;
+	});
+
 export const deleteGraph = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
@@ -1072,6 +1088,7 @@ export type TemplateWithNodeTypes = {
 	ownerType: "org" | "team";
 	ownerId: string;
 	name: string;
+	description: string;
 	nodeTypes: { id: string; name: string; color: string }[];
 };
 
@@ -1154,6 +1171,7 @@ async function listTemplatesByOwner(
 		ownerType: t.ownerType,
 		ownerId: t.ownerId,
 		name: t.name,
+		description: t.description,
 		nodeTypes: links
 			.filter((l) => l.templateId === t.id)
 			.map((l) => ({ id: l.id, name: l.name, color: l.color })),
@@ -1192,8 +1210,12 @@ export const listTemplatesForTeamCreation = createServerFn({ method: "GET" })
 
 export const createTemplate = createServerFn({ method: "POST" })
 	.inputValidator(
-		(data: { ownerType: "org" | "team"; ownerId: string; name: string }) =>
-			data,
+		(data: {
+			ownerType: "org" | "team";
+			ownerId: string;
+			name: string;
+			description?: string;
+		}) => data,
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
@@ -1209,6 +1231,7 @@ export const createTemplate = createServerFn({ method: "POST" })
 			ownerType: data.ownerType,
 			ownerId: data.ownerId,
 			name,
+			description: data.description?.trim() ?? "",
 		});
 		return { id };
 	});
@@ -1223,6 +1246,18 @@ export const renameTemplate = createServerFn({ method: "POST" })
 		await db
 			.update(graphTemplates)
 			.set({ name })
+			.where(eq(graphTemplates.id, data.id));
+		return { success: true };
+	});
+
+export const updateTemplateDescription = createServerFn({ method: "POST" })
+	.inputValidator((data: { id: string; description: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await requireOwnedTemplate(data.id, userId);
+		await db
+			.update(graphTemplates)
+			.set({ description: data.description })
 			.where(eq(graphTemplates.id, data.id));
 		return { success: true };
 	});

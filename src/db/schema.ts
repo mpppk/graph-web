@@ -139,6 +139,8 @@ export const graphTemplates = sqliteTable(
 		ownerType: text("owner_type", { enum: ["org", "team"] }).notNull(),
 		ownerId: text("owner_id").notNull(),
 		name: text("name").notNull(),
+		// Default description seeded into graphs created from this template.
+		description: text("description").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(t) => [
