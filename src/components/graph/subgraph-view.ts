@@ -57,7 +57,19 @@ export function buildSubgraphDisplayNodes(
 			// the empty space around the nodes). The header opts back in to
 			// `pointerEvents: auto` so it can act as the drag handle; everything
 			// else is click-through to the pane behind it.
-			style: { width: box.width, height: box.height, pointerEvents: "none" },
+			//
+			// The remaining overrides strip React Flow's default group-node chrome
+			// (dark border, 10px padding, grey background) so the only visible box
+			// is the one drawn by SubgraphGroupNode, flush with the layout bounds.
+			style: {
+				width: box.width,
+				height: box.height,
+				pointerEvents: "none",
+				border: "none",
+				borderRadius: 0,
+				padding: 0,
+				background: "transparent",
+			},
 			// Draggable (when editable) so the whole group moves as one, but only
 			// when grabbed by its header (dragHandle); never selectable so it stays
 			// out of selection/copy flows.
