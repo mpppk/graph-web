@@ -79,4 +79,30 @@ describe("buildSubgraphDisplayNodes", () => {
 		expect(c?.parentId).toBeUndefined();
 		expect(c?.position).toEqual({ x: 500, y: 0 });
 	});
+
+	it("keeps group containers non-draggable by default", () => {
+		const layout: SubgraphLayout = {
+			groups: new Map([["KPI", { x: 0, y: 0, width: 100, height: 100 }]]),
+			nodePositions: new Map(),
+		};
+		const result = buildSubgraphDisplayNodes(nodes, new Set(["KPI"]), layout);
+		expect(result[0].draggable).toBe(false);
+	});
+
+	it("makes group containers draggable when movable", () => {
+		const layout: SubgraphLayout = {
+			groups: new Map([["KPI", { x: 0, y: 0, width: 100, height: 100 }]]),
+			nodePositions: new Map(),
+		};
+		const result = buildSubgraphDisplayNodes(
+			nodes,
+			new Set(["KPI"]),
+			layout,
+			true,
+		);
+		const group = result[0];
+		expect(group.draggable).toBe(true);
+		// Never selectable so it stays out of selection/copy flows.
+		expect(group.selectable).toBe(false);
+	});
 });
