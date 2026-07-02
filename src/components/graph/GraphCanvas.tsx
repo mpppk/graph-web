@@ -17,6 +17,7 @@ import {
 import { SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
+import { Switch } from "#/components/ui/switch";
 import type { graphs } from "#/db/schema";
 import {
 	type CreationTypeSetting,
@@ -45,6 +46,7 @@ import { EditableEdge } from "./EditableEdge";
 import { EditableNode } from "./EditableNode";
 import { computeElkLayout } from "./elk-layout";
 import { GraphCommandPalette } from "./GraphCommandPalette";
+import { type GraphMode, GraphModeProvider } from "./GraphModeContext";
 import { generateMermaidDiagram } from "./mermaid-export";
 import { NodeSidePanel } from "./NodeSidePanel";
 import { buildColorMap, NodeTypeProvider } from "./NodeTypeContext";
@@ -119,6 +121,8 @@ function GraphCanvasInner({
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+	const [mode, setMode] = useState<GraphMode>("edit");
+	const readOnly = mode === "read";
 
 	const { data: nodeTypeList = [] } = useQuery({
 		queryKey: ["nodeTypes", graph.id],
@@ -322,6 +326,7 @@ function GraphCanvasInner({
 
 	const onConnect: OnConnect = useCallback(
 		(connection: Connection) => {
+			if (readOnly) return;
 			if (connection.source && connection.target) {
 				createEdgeMutation.mutate({
 					sourceNodeId: connection.source,
@@ -329,22 +334,24 @@ function GraphCanvasInner({
 				});
 			}
 		},
-		[createEdgeMutation],
+		[createEdgeMutation, readOnly],
 	);
 
 	const onNodeDragStop = useCallback(
 		(_: MouseEvent | TouchEvent, node: RFNode) => {
+			if (readOnly) return;
 			updatePosition.mutate({
 				id: node.id,
 				x: node.position.x,
 				y: node.position.y,
 			});
 		},
-		[updatePosition],
+		[updatePosition, readOnly],
 	);
 
 	const onSelectionDragStop = useCallback(
 		(_: React.MouseEvent, selectedNodes: RFNode[]) => {
+			if (readOnly) return;
 			for (const node of selectedNodes) {
 				updatePosition.mutate({
 					id: node.id,
@@ -353,7 +360,7 @@ function GraphCanvasInner({
 				});
 			}
 		},
-		[updatePosition],
+		[updatePosition, readOnly],
 	);
 
 	const onNodeClick = useCallback((_: React.MouseEvent, node: RFNode) => {
@@ -541,7 +548,8 @@ function GraphCanvasInner({
 			}
 
 			if (isMod && e.key === "v") {
-				if (!clipboardRef.current || pasteNodesMutation.isPending) return;
+				if (readOnly || !clipboardRef.current || pasteNodesMutation.isPending)
+					return;
 				e.preventDefault();
 
 				const clipboard = clipboardRef.current;
@@ -586,116 +594,133 @@ function GraphCanvasInner({
 
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [nodes, edges, graph.id, pasteNodesMutation]);
+	}, [nodes, edges, graph.id, pasteNodesMutation, readOnly]);
 
 	return (
 		<NodeTypeProvider typeList={nodeTypeList}>
-			<div className="flex h-full flex-col">
-				<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={() =>
-							navigate({ to: backHref } as Parameters<typeof navigate>[0])
-						}
-					>
-						← Back
-					</Button>
-					<div className="flex min-w-0 items-center gap-1">
-						<h1 className="min-w-0 truncate font-semibold text-foreground">
-							{graph.name}
-						</h1>
+			<GraphModeProvider mode={mode}>
+				<div className="flex h-full flex-col">
+					<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
 						<Button
 							type="button"
 							variant="ghost"
-							size="icon"
-							aria-label="コマンドパレットを開く (⌘K)"
-							title="コマンドパレットを開く (⌘K)"
-							onClick={() => setPaletteOpen(true)}
+							size="sm"
+							onClick={() =>
+								navigate({ to: backHref } as Parameters<typeof navigate>[0])
+							}
 						>
-							<SparklesIcon />
+							← Back
 						</Button>
-					</div>
-					{graph.description && (
-						<span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-							{graph.description}
-						</span>
-					)}
-				</header>
+						<div className="flex min-w-0 items-center gap-1">
+							<h1 className="min-w-0 truncate font-semibold text-foreground">
+								{graph.name}
+							</h1>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								aria-label="コマンドパレットを開く (⌘K)"
+								title="コマンドパレットを開く (⌘K)"
+								onClick={() => setPaletteOpen(true)}
+							>
+								<SparklesIcon />
+							</Button>
+						</div>
+						{graph.description && (
+							<span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+								{graph.description}
+							</span>
+						)}
+						<div className="ml-auto flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+							<span>{readOnly ? "閲覧" : "編集"}</span>
+							<Switch
+								checked={!readOnly}
+								onCheckedChange={(checked) =>
+									setMode(checked ? "edit" : "read")
+								}
+								aria-label="編集モード"
+							/>
+						</div>
+					</header>
 
-				<div className="flex flex-1 overflow-hidden">
-					<div className="flex-1 overflow-hidden">
-						<ReactFlow
-							nodes={nodes}
-							edges={edges}
-							nodeTypes={nodeTypes}
-							edgeTypes={edgeTypes}
-							onNodesChange={onNodesChange}
-							onEdgesChange={onEdgesChange}
-							onConnect={onConnect}
-							onNodeDragStop={onNodeDragStop}
-							onSelectionDragStop={onSelectionDragStop}
-							onNodeClick={onNodeClick}
-							onEdgeClick={onEdgeClick}
-							onPaneClick={onPaneClick}
-							onNodesDelete={onNodesDelete}
-							onEdgesDelete={onEdgesDelete}
-							deleteKeyCode={["Delete", "Backspace"]}
-							selectionOnDrag
-							panOnDrag={[1, 2]}
-							fitView
-							colorMode={colorMode}
-							onInit={(instance) => {
-								rfInstanceRef.current = instance;
-							}}
-						>
-							<Background />
-							<Controls />
-							<MiniMap />
-						</ReactFlow>
+					<div className="flex flex-1 overflow-hidden">
+						<div className="flex-1 overflow-hidden">
+							<ReactFlow
+								nodes={nodes}
+								edges={edges}
+								nodeTypes={nodeTypes}
+								edgeTypes={edgeTypes}
+								onNodesChange={onNodesChange}
+								onEdgesChange={onEdgesChange}
+								onConnect={onConnect}
+								onNodeDragStop={onNodeDragStop}
+								onSelectionDragStop={onSelectionDragStop}
+								onNodeClick={onNodeClick}
+								onEdgeClick={onEdgeClick}
+								onPaneClick={onPaneClick}
+								onNodesDelete={onNodesDelete}
+								onEdgesDelete={onEdgesDelete}
+								deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
+								nodesConnectable={!readOnly}
+								nodesDraggable={!readOnly}
+								panOnDrag
+								selectionKeyCode="Shift"
+								fitView
+								colorMode={colorMode}
+								onInit={(instance) => {
+									rfInstanceRef.current = instance;
+								}}
+							>
+								<Background />
+								<Controls />
+								<MiniMap />
+							</ReactFlow>
+						</div>
+
+						{selectedNodeId && (
+							<NodeSidePanel
+								nodeId={selectedNodeId}
+								nodes={nodes}
+								onClose={() => setSelectedNodeId(null)}
+								onDeleteNode={handleDeleteNodeFromPanel}
+								onUpdateNodeType={handleUpdateNodeType}
+								onUpdateNodeLabel={handleUpdateNodeLabel}
+								readOnly={readOnly}
+							/>
+						)}
+						{selectedEdgeId && (
+							<EdgeSidePanel
+								edgeId={selectedEdgeId}
+								edges={edges}
+								onClose={() => setSelectedEdgeId(null)}
+								onDeleteEdge={handleDeleteEdgeFromPanel}
+								onUpdateLabel={handleUpdateEdgeLabel}
+								readOnly={readOnly}
+							/>
+						)}
 					</div>
 
-					{selectedNodeId && (
-						<NodeSidePanel
-							nodeId={selectedNodeId}
-							nodes={nodes}
-							onClose={() => setSelectedNodeId(null)}
-							onDeleteNode={handleDeleteNodeFromPanel}
-							onUpdateNodeType={handleUpdateNodeType}
-							onUpdateNodeLabel={handleUpdateNodeLabel}
-						/>
-					)}
-					{selectedEdgeId && (
-						<EdgeSidePanel
-							edgeId={selectedEdgeId}
-							edges={edges}
-							onClose={() => setSelectedEdgeId(null)}
-							onDeleteEdge={handleDeleteEdgeFromPanel}
-							onUpdateLabel={handleUpdateEdgeLabel}
-						/>
-					)}
+					<GraphCommandPalette
+						open={paletteOpen}
+						onOpenChange={setPaletteOpen}
+						onCopyMermaid={handleCopyMermaid}
+						onOpenSettings={() =>
+							navigate({ to: settingsHref } as Parameters<typeof navigate>[0])
+						}
+						onRunLayout={(algo) => {
+							setSelectedAlgo(algo);
+							runLayout(algo);
+						}}
+						onAddNode={(nodeType) =>
+							createNodeMutation.mutate({ label: "New Node", nodeType })
+						}
+						creationTypes={creationTypeNames}
+						layoutAlgorithms={LAYOUT_ALGORITHMS}
+						selectedAlgoId={selectedAlgo.id}
+						readOnly={readOnly}
+					/>
 				</div>
-
-				<GraphCommandPalette
-					open={paletteOpen}
-					onOpenChange={setPaletteOpen}
-					onCopyMermaid={handleCopyMermaid}
-					onOpenSettings={() =>
-						navigate({ to: settingsHref } as Parameters<typeof navigate>[0])
-					}
-					onRunLayout={(algo) => {
-						setSelectedAlgo(algo);
-						runLayout(algo);
-					}}
-					onAddNode={(nodeType) =>
-						createNodeMutation.mutate({ label: "New Node", nodeType })
-					}
-					creationTypes={creationTypeNames}
-					layoutAlgorithms={LAYOUT_ALGORITHMS}
-					selectedAlgoId={selectedAlgo.id}
-				/>
-			</div>
+			</GraphModeProvider>
 		</NodeTypeProvider>
 	);
 }

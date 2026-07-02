@@ -24,6 +24,7 @@ export function NodeSidePanel({
 	onDeleteNode,
 	onUpdateNodeType,
 	onUpdateNodeLabel,
+	readOnly = false,
 }: {
 	nodeId: string;
 	nodes: RFNode[];
@@ -31,6 +32,7 @@ export function NodeSidePanel({
 	onDeleteNode: (id: string) => void;
 	onUpdateNodeType: (nodeId: string, nodeType: string | null) => void;
 	onUpdateNodeLabel: (nodeId: string, label: string) => void;
+	readOnly?: boolean;
 }) {
 	const { typeList } = useNodeTypes();
 	const qc = useQueryClient();
@@ -136,7 +138,11 @@ export function NodeSidePanel({
 					<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Label
 					</p>
-					{labelEditing ? (
+					{readOnly ? (
+						<div className="w-full rounded-md border bg-muted px-3 py-2 text-left text-sm text-foreground">
+							{label}
+						</div>
+					) : labelEditing ? (
 						<Input
 							ref={labelInputRef}
 							value={labelDraft}
@@ -166,6 +172,7 @@ export function NodeSidePanel({
 					</p>
 					<Select
 						value={currentNodeType || "__none__"}
+						disabled={readOnly}
 						onValueChange={(val) => {
 							onUpdateNodeType(nodeId, val === "__none__" ? null : val);
 						}}
@@ -199,7 +206,15 @@ export function NodeSidePanel({
 								<span className="w-24 shrink-0 truncate rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
 									{m.key}
 								</span>
-								{editingId === m.id ? (
+								{readOnly ? (
+									<span className="flex-1 truncate px-2 py-1 text-left text-xs text-foreground">
+										{m.value || (
+											<span className="italic text-muted-foreground">
+												（空）
+											</span>
+										)}
+									</span>
+								) : editingId === m.id ? (
 									<Input
 										ref={editInputRef}
 										value={editDraft}
@@ -225,63 +240,69 @@ export function NodeSidePanel({
 										)}
 									</button>
 								)}
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									onClick={() => deleteMeta.mutate(m.id)}
-									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-									aria-label="Delete metadata"
-								>
-									✕
-								</Button>
+								{!readOnly && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										onClick={() => deleteMeta.mutate(m.id)}
+										className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+										aria-label="Delete metadata"
+									>
+										✕
+									</Button>
+								)}
 							</li>
 						))}
 					</ul>
 
-					<div className="mt-3 flex gap-2">
-						<Input
-							value={newKey}
-							onChange={(e) => setNewKey(e.target.value)}
-							placeholder="key"
-							className="h-7 w-24 shrink-0 text-xs"
-							onKeyDown={(e) => {
-								if (e.key === "Enter") handleAddMeta();
-							}}
-						/>
-						<Input
-							value={newValue}
-							onChange={(e) => setNewValue(e.target.value)}
-							placeholder="value"
-							className="h-7 flex-1 text-xs"
-							onKeyDown={(e) => {
-								if (e.key === "Enter") handleAddMeta();
-							}}
-						/>
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							onClick={handleAddMeta}
-							disabled={!newKey.trim()}
-							className="h-7 shrink-0 text-xs"
-						>
-							追加
-						</Button>
-					</div>
+					{!readOnly && (
+						<div className="mt-3 flex gap-2">
+							<Input
+								value={newKey}
+								onChange={(e) => setNewKey(e.target.value)}
+								placeholder="key"
+								className="h-7 w-24 shrink-0 text-xs"
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleAddMeta();
+								}}
+							/>
+							<Input
+								value={newValue}
+								onChange={(e) => setNewValue(e.target.value)}
+								placeholder="value"
+								className="h-7 flex-1 text-xs"
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleAddMeta();
+								}}
+							/>
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								onClick={handleAddMeta}
+								disabled={!newKey.trim()}
+								className="h-7 shrink-0 text-xs"
+							>
+								追加
+							</Button>
+						</div>
+					)}
 				</section>
 			</div>
 
-			<div className="border-t p-4">
-				<Button
-					type="button"
-					variant="destructive"
-					className="w-full"
-					onClick={() => onDeleteNode(nodeId)}
-				>
-					Delete Node
-				</Button>
-			</div>
+			{!readOnly && (
+				<div className="border-t p-4">
+					<Button
+						type="button"
+						variant="destructive"
+						className="w-full"
+						onClick={() => onDeleteNode(nodeId)}
+					>
+						Delete Node
+					</Button>
+				</div>
+			)}
 		</aside>
 	);
 }
