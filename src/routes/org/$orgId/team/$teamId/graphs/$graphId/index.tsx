@@ -90,7 +90,6 @@ function TeamGraphPage() {
 				initialEdges={initialEdges}
 				initialNodeTypes={initialNodeTypes}
 				initialCreationTypeSettings={initialCreationTypeSettings}
-				backHref={`/org/${orgId}/team/${teamId}/graphs`}
 				orgId={orgId}
 				teamId={teamId}
 			/>

@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { SparklesIcon } from "lucide-react";
 import { authClient } from "#/lib/auth-client";
 import { getGraph } from "#/lib/graph-server-fns";
 import { getTeam } from "#/lib/org-server-fns";
 import BetterAuthHeader from "../integrations/better-auth/header-user.tsx";
+import { useCommandPalette } from "./graph/CommandPaletteContext";
+import { Button } from "./ui/button";
 
 function HeaderBreadcrumb() {
 	const params = useRouterState({
@@ -12,6 +15,8 @@ function HeaderBreadcrumb() {
 			return (last?.params ?? {}) as Record<string, string>;
 		},
 	});
+
+	const { openPalette } = useCommandPalette();
 
 	const orgId = params.orgId;
 	const teamId = params.teamId;
@@ -46,6 +51,19 @@ function HeaderBreadcrumb() {
 					<span className="truncate font-medium text-foreground">
 						{graph?.name ?? "…"}
 					</span>
+					{openPalette && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							className="size-7 shrink-0"
+							aria-label="コマンドパレットを開く (⌘K)"
+							title="コマンドパレットを開く (⌘K)"
+							onClick={() => openPalette()}
+						>
+							<SparklesIcon />
+						</Button>
+					)}
 				</>
 			)}
 		</div>

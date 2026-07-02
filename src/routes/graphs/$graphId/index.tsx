@@ -71,7 +71,6 @@ function GraphPage() {
 				initialEdges={initialEdges}
 				initialNodeTypes={initialNodeTypes}
 				initialCreationTypeSettings={initialCreationTypeSettings}
-				backHref="/graphs"
 			/>
 		</Suspense>
 	);

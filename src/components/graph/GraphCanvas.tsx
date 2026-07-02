@@ -7,6 +7,7 @@ import {
 	Controls,
 	MiniMap,
 	type OnConnect,
+	Panel,
 	ReactFlow,
 	type ReactFlowInstance,
 	type Edge as RFEdge,
@@ -14,10 +15,9 @@ import {
 	useEdgesState,
 	useNodesState,
 } from "@xyflow/react";
-import { SparklesIcon } from "lucide-react";
+import { EyeIcon, PencilIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
-import { Switch } from "#/components/ui/switch";
 import type { graphs } from "#/db/schema";
 import {
 	type CreationTypeSetting,
@@ -35,6 +35,7 @@ import {
 	updateNodeLabel,
 	updateNodePosition,
 } from "#/lib/graph-server-fns";
+import { useCommandPalette } from "./CommandPaletteContext";
 import {
 	DEFAULT_LAYOUT_ALGORITHM,
 	LAYOUT_ALGORITHMS,
@@ -101,7 +102,6 @@ function GraphCanvasInner({
 	initialEdges,
 	initialNodeTypes,
 	initialCreationTypeSettings = [],
-	backHref = "/graphs",
 	orgId,
 	teamId,
 }: {
@@ -110,11 +110,11 @@ function GraphCanvasInner({
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
 	initialCreationTypeSettings?: CreationTypeSetting[];
-	backHref?: string;
 	orgId?: string;
 	teamId?: string;
 }) {
 	const navigate = useNavigate();
+	const { setOpenPalette } = useCommandPalette();
 	const qc = useQueryClient();
 	const colorMode = useColorMode();
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -595,53 +595,17 @@ function GraphCanvasInner({
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [nodes, edges, graph.id, pasteNodesMutation, readOnly]);
 
+	// Expose the palette trigger to the global header's sparkle button while
+	// this canvas is mounted.
+	useEffect(() => {
+		setOpenPalette(() => () => setPaletteOpen(true));
+		return () => setOpenPalette(null);
+	}, [setOpenPalette]);
+
 	return (
 		<NodeTypeProvider typeList={nodeTypeList}>
 			<GraphModeProvider mode={mode}>
 				<div className="flex h-full flex-col">
-					<header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-3">
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={() =>
-								navigate({ to: backHref } as Parameters<typeof navigate>[0])
-							}
-						>
-							← Back
-						</Button>
-						<div className="flex min-w-0 items-center gap-1">
-							<h1 className="min-w-0 truncate font-semibold text-foreground">
-								{graph.name}
-							</h1>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								aria-label="コマンドパレットを開く (⌘K)"
-								title="コマンドパレットを開く (⌘K)"
-								onClick={() => setPaletteOpen(true)}
-							>
-								<SparklesIcon />
-							</Button>
-						</div>
-						{graph.description && (
-							<span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-								{graph.description}
-							</span>
-						)}
-						<div className="ml-auto flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-							<span>{readOnly ? "閲覧" : "編集"}</span>
-							<Switch
-								checked={!readOnly}
-								onCheckedChange={(checked) =>
-									setMode(checked ? "edit" : "read")
-								}
-								aria-label="編集モード"
-							/>
-						</div>
-					</header>
-
 					<div className="flex flex-1 overflow-hidden">
 						<div className="flex-1 overflow-hidden">
 							<ReactFlow
@@ -673,6 +637,34 @@ function GraphCanvasInner({
 								<Background />
 								<Controls />
 								<MiniMap />
+								<Panel position="top-left">
+									<div className="inline-flex items-center gap-0.5 rounded-md border bg-card p-0.5 shadow-sm">
+										<Button
+											type="button"
+											variant={readOnly ? "secondary" : "ghost"}
+											size="icon"
+											className="size-8"
+											aria-label="閲覧モード"
+											aria-pressed={readOnly}
+											title="閲覧モード"
+											onClick={() => setMode("read")}
+										>
+											<EyeIcon />
+										</Button>
+										<Button
+											type="button"
+											variant={readOnly ? "ghost" : "secondary"}
+											size="icon"
+											className="size-8"
+											aria-label="編集モード"
+											aria-pressed={!readOnly}
+											title="編集モード"
+											onClick={() => setMode("edit")}
+										>
+											<PencilIcon />
+										</Button>
+									</div>
+								</Panel>
 							</ReactFlow>
 						</div>
 
@@ -702,6 +694,8 @@ function GraphCanvasInner({
 					<GraphCommandPalette
 						open={paletteOpen}
 						onOpenChange={setPaletteOpen}
+						graphName={graph.name}
+						graphDescription={graph.description}
 						onCopyMermaid={handleCopyMermaid}
 						onOpenSettings={() =>
 							navigate({ to: settingsHref } as Parameters<typeof navigate>[0])
@@ -730,7 +724,6 @@ export default function GraphCanvas(props: {
 	initialEdges: RFEdge[];
 	initialNodeTypes: NodeTypeWithFields[];
 	initialCreationTypeSettings?: CreationTypeSetting[];
-	backHref?: string;
 	orgId?: string;
 	teamId?: string;
 }) {
