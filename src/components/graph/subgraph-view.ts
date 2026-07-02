@@ -1,6 +1,11 @@
 import type { Node as RFNode } from "@xyflow/react";
 import { groupIdForType, type SubgraphLayout } from "./elk-layout";
 
+// Class name marking the group container's drag handle (its header). React Flow
+// only starts a group drag when the pointer goes down on an element matching
+// this selector, so the rest of the container can be click-through.
+export const SUBGRAPH_DRAG_HANDLE_CLASS = "subgraph-drag-handle";
+
 // The node type name carried on a React Flow node's data, or null.
 export function nodeTypeOf(node: RFNode): string | null {
 	return (node.data?.nodeType as string | null | undefined) ?? null;
@@ -42,15 +47,34 @@ export function buildSubgraphDisplayNodes(
 			id: groupIdForType(typeName),
 			type: "group",
 			position: { x: box.x, y: box.y },
-			data: { typeName },
+			data: { typeName, movable },
 			// Both explicit dimensions (so React Flow knows the parent size for
 			// child `extent: "parent"` clamping) and style (for rendering).
 			width: box.width,
 			height: box.height,
-			style: { width: box.width, height: box.height },
-			// Draggable (when editable) so the whole group moves as one; never
-			// selectable so it stays out of selection/copy flows.
+			// `pointerEvents: none` disables the container's own hit area (which
+			// otherwise spans the whole padded bounding box and captures clicks in
+			// the empty space around the nodes). The header opts back in to
+			// `pointerEvents: auto` so it can act as the drag handle; everything
+			// else is click-through to the pane behind it.
+			//
+			// The remaining overrides strip React Flow's default group-node chrome
+			// (dark border, 10px padding, grey background) so the only visible box
+			// is the one drawn by SubgraphGroupNode, flush with the layout bounds.
+			style: {
+				width: box.width,
+				height: box.height,
+				pointerEvents: "none",
+				border: "none",
+				borderRadius: 0,
+				padding: 0,
+				background: "transparent",
+			},
+			// Draggable (when editable) so the whole group moves as one, but only
+			// when grabbed by its header (dragHandle); never selectable so it stays
+			// out of selection/copy flows.
 			draggable: movable,
+			dragHandle: `.${SUBGRAPH_DRAG_HANDLE_CLASS}`,
 			selectable: false,
 			// Render group containers behind their children.
 			zIndex: 0,

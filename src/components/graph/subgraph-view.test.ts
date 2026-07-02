@@ -87,6 +87,7 @@ describe("buildSubgraphDisplayNodes", () => {
 		};
 		const result = buildSubgraphDisplayNodes(nodes, new Set(["KPI"]), layout);
 		expect(result[0].draggable).toBe(false);
+		expect(result[0].data.movable).toBe(false);
 	});
 
 	it("makes group containers draggable when movable", () => {
@@ -104,5 +105,9 @@ describe("buildSubgraphDisplayNodes", () => {
 		expect(group.draggable).toBe(true);
 		// Never selectable so it stays out of selection/copy flows.
 		expect(group.selectable).toBe(false);
+		// Draggable only via its header, and the container itself is click-through.
+		expect(group.dragHandle).toBe(".subgraph-drag-handle");
+		expect(group.data.movable).toBe(true);
+		expect(group.style?.pointerEvents).toBe("none");
 	});
 });
