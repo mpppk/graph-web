@@ -663,8 +663,8 @@ function GraphCanvasInner({
 								deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
 								nodesConnectable={!readOnly}
 								nodesDraggable={!readOnly}
-								selectionOnDrag
-								panOnDrag={[1, 2]}
+								panOnDrag
+								selectionKeyCode="Shift"
 								fitView
 								colorMode={colorMode}
 								onInit={(instance) => {
