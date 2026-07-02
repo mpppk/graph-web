@@ -8,6 +8,7 @@ import {
 	PlusIcon,
 	SettingsIcon,
 	SparklesIcon,
+	TableIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -50,6 +51,7 @@ export function GraphCommandPalette({
 	graphDescription,
 	onCopyMermaid,
 	onOpenSettings,
+	onOpenTable,
 	onRunLayout,
 	onAddNode,
 	creationTypes,
@@ -63,6 +65,7 @@ export function GraphCommandPalette({
 	graphDescription: string | null;
 	onCopyMermaid: () => void;
 	onOpenSettings: () => void;
+	onOpenTable: () => void;
 	onRunLayout: (algo: LayoutAlgorithm) => void;
 	onAddNode: (nodeType: string | null) => void;
 	creationTypes: string[];
@@ -289,6 +292,20 @@ export function GraphCommandPalette({
 											<InfoIcon />
 											グラフ情報を表示…
 											<ChevronRightIcon className="ml-auto" />
+										</CommandItem>
+										<CommandItem
+											keywords={[
+												"table",
+												"テーブル",
+												"表",
+												"一覧",
+												"リスト",
+												"list",
+											]}
+											onSelect={() => runAndClose(onOpenTable)}
+										>
+											<TableIcon />
+											テーブル表示
 										</CommandItem>
 										<CommandItem
 											keywords={["settings", "設定", "type", "タイプ", "管理"]}

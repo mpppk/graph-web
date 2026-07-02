@@ -182,6 +182,10 @@ function GraphCanvasInner({
 		orgId && teamId
 			? `/org/${orgId}/team/${teamId}/graphs/${graph.id}/settings`
 			: `/graphs/${graph.id}/settings`;
+	const tableHref =
+		orgId && teamId
+			? `/org/${orgId}/team/${teamId}/graphs/${graph.id}/table`
+			: `/graphs/${graph.id}/table`;
 	const [selectedAlgo, setSelectedAlgo] = useState<LayoutAlgorithm>(
 		DEFAULT_LAYOUT_ALGORITHM,
 	);
@@ -844,6 +848,9 @@ function GraphCanvasInner({
 						onCopyMermaid={handleCopyMermaid}
 						onOpenSettings={() =>
 							navigate({ to: settingsHref } as Parameters<typeof navigate>[0])
+						}
+						onOpenTable={() =>
+							navigate({ to: tableHref } as Parameters<typeof navigate>[0])
 						}
 						onRunLayout={(algo) => {
 							setSelectedAlgo(algo);

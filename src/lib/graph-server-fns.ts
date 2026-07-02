@@ -580,6 +580,25 @@ export const listNodeMetadata = createServerFn({ method: "GET" })
 			.where(eq(nodeMetadata.nodeId, data.nodeId));
 	});
 
+// All metadata rows for the nodes of a graph, in one query. Used by the table
+// view to render each node's metadata without a request per node.
+export const listGraphNodeMetadata = createServerFn({ method: "GET" })
+	.inputValidator((data: { graphId: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		await assertGraphAccess(data.graphId, userId);
+		return db
+			.select({
+				nodeId: nodeMetadata.nodeId,
+				key: nodeMetadata.key,
+				value: nodeMetadata.value,
+				valueType: nodeMetadata.valueType,
+			})
+			.from(nodeMetadata)
+			.innerJoin(nodes, eq(nodeMetadata.nodeId, nodes.id))
+			.where(eq(nodes.graphId, data.graphId));
+	});
+
 export const upsertNodeMetadata = createServerFn({ method: "POST" })
 	.inputValidator(
 		(data: {
