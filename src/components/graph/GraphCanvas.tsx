@@ -35,6 +35,7 @@ import {
 	updateNodeLabel,
 	updateNodePosition,
 } from "#/lib/graph-server-fns";
+import { useCommandPalette } from "./CommandPaletteContext";
 import {
 	DEFAULT_LAYOUT_ALGORITHM,
 	LAYOUT_ALGORITHMS,
@@ -44,7 +45,6 @@ import { enabledCreationTypeNames } from "./creation-types";
 import { EdgeSidePanel } from "./EdgeSidePanel";
 import { EditableEdge } from "./EditableEdge";
 import { EditableNode } from "./EditableNode";
-import { useCommandPalette } from "./CommandPaletteContext";
 import { computeElkLayout } from "./elk-layout";
 import { GraphCommandPalette } from "./GraphCommandPalette";
 import { type GraphMode, GraphModeProvider } from "./GraphModeContext";

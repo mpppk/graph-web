@@ -5,8 +5,8 @@ import { authClient } from "#/lib/auth-client";
 import { getGraph } from "#/lib/graph-server-fns";
 import { getTeam } from "#/lib/org-server-fns";
 import BetterAuthHeader from "../integrations/better-auth/header-user.tsx";
-import { Button } from "./ui/button";
 import { useCommandPalette } from "./graph/CommandPaletteContext";
+import { Button } from "./ui/button";
 
 function HeaderBreadcrumb() {
 	const params = useRouterState({
