@@ -38,6 +38,10 @@ export function buildSubgraphDisplayNodes(
 			type: "group",
 			position: { x: box.x, y: box.y },
 			data: { typeName },
+			// Both explicit dimensions (so React Flow knows the parent size for
+			// child `extent: "parent"` clamping) and style (for rendering).
+			width: box.width,
+			height: box.height,
 			style: { width: box.width, height: box.height },
 			draggable: false,
 			selectable: false,
