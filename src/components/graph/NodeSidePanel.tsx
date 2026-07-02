@@ -15,7 +15,128 @@ import {
 	listNodeMetadata,
 	upsertNodeMetadata,
 } from "#/lib/graph-server-fns";
+import {
+	DEFAULT_METADATA_VALUE_TYPE,
+	METADATA_VALUE_TYPE_LABELS,
+	METADATA_VALUE_TYPES,
+	type MetadataValueType,
+	validateMetadataValue,
+} from "#/lib/metadata-types";
 import { useNodeTypes } from "./NodeTypeContext";
+
+// Selector for a metadata value type (種別).
+function TypeSelect({
+	value,
+	onChange,
+	disabled,
+	className,
+}: {
+	value: MetadataValueType;
+	onChange: (v: MetadataValueType) => void;
+	disabled?: boolean;
+	className?: string;
+}) {
+	return (
+		<Select
+			value={value}
+			disabled={disabled}
+			onValueChange={(v) => onChange(v as MetadataValueType)}
+		>
+			<SelectTrigger className={className}>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent>
+				{METADATA_VALUE_TYPES.map((t) => (
+					<SelectItem key={t} value={t}>
+						{METADATA_VALUE_TYPE_LABELS[t]}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	);
+}
+
+// Value input control that adapts to the selected type.
+function MetadataValueInput({
+	type,
+	value,
+	onChange,
+	onEnter,
+	onEscape,
+	onBlur,
+	inputRef,
+	className,
+}: {
+	type: MetadataValueType;
+	value: string;
+	onChange: (v: string) => void;
+	onEnter?: () => void;
+	onEscape?: () => void;
+	onBlur?: () => void;
+	inputRef?: React.Ref<HTMLInputElement>;
+	className?: string;
+}) {
+	if (type === "boolean") {
+		return (
+			<Select value={value === "" ? undefined : value} onValueChange={onChange}>
+				<SelectTrigger className={className}>
+					<SelectValue placeholder="真偽値" />
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="true">はい (true)</SelectItem>
+					<SelectItem value="false">いいえ (false)</SelectItem>
+				</SelectContent>
+			</Select>
+		);
+	}
+	const inputType =
+		type === "number" ? "number" : type === "date" ? "date" : "text";
+	return (
+		<Input
+			ref={inputRef}
+			type={inputType}
+			value={value}
+			placeholder={type === "url" ? "https://..." : "value"}
+			onChange={(e) => onChange(e.target.value)}
+			onBlur={onBlur}
+			onKeyDown={(e) => {
+				if (e.key === "Enter") onEnter?.();
+				if (e.key === "Escape") onEscape?.();
+			}}
+			className={className}
+		/>
+	);
+}
+
+// Read-only display of a metadata value, formatted by type.
+function MetadataValueDisplay({
+	type,
+	value,
+}: {
+	type: MetadataValueType;
+	value: string;
+}) {
+	if (value === "") {
+		return <span className="italic text-muted-foreground">（空）</span>;
+	}
+	if (type === "url") {
+		return (
+			<a
+				href={value}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="truncate text-primary underline hover:no-underline"
+				onClick={(e) => e.stopPropagation()}
+			>
+				{value}
+			</a>
+		);
+	}
+	if (type === "boolean") {
+		return <span>{value === "true" ? "はい" : "いいえ"}</span>;
+	}
+	return <span>{value}</span>;
+}
 
 export function NodeSidePanel({
 	nodeId,
@@ -49,8 +170,15 @@ export function NodeSidePanel({
 	});
 
 	const upsertMeta = useMutation({
-		mutationFn: ({ key, value }: { key: string; value: string }) =>
-			upsertNodeMetadata({ data: { nodeId, key, value } }),
+		mutationFn: ({
+			key,
+			value,
+			valueType,
+		}: {
+			key: string;
+			value: string;
+			valueType: MetadataValueType;
+		}) => upsertNodeMetadata({ data: { nodeId, key, value, valueType } }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ["metadata", nodeId] }),
 	});
 
@@ -61,8 +189,14 @@ export function NodeSidePanel({
 
 	const [newKey, setNewKey] = useState("");
 	const [newValue, setNewValue] = useState("");
+	const [newType, setNewType] = useState<MetadataValueType>(
+		DEFAULT_METADATA_VALUE_TYPE,
+	);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editDraft, setEditDraft] = useState("");
+	const [editType, setEditType] = useState<MetadataValueType>(
+		DEFAULT_METADATA_VALUE_TYPE,
+	);
 	const editInputRef = useRef<HTMLInputElement>(null);
 
 	const [labelEditing, setLabelEditing] = useState(false);
@@ -93,26 +227,37 @@ export function NodeSidePanel({
 		setLabelEditing(false);
 	}, [labelDraft, label, nodeId, onUpdateNodeLabel]);
 
+	const newValidation = validateMetadataValue(newType, newValue.trim());
+	const editValidation = validateMetadataValue(editType, editDraft.trim());
+
 	const handleAddMeta = useCallback(() => {
 		const k = newKey.trim();
 		const v = newValue.trim();
 		if (!k) return;
-		upsertMeta.mutate({ key: k, value: v });
+		if (!validateMetadataValue(newType, v).ok) return;
+		upsertMeta.mutate({ key: k, value: v, valueType: newType });
 		setNewKey("");
 		setNewValue("");
-	}, [newKey, newValue, upsertMeta]);
+		setNewType(DEFAULT_METADATA_VALUE_TYPE);
+	}, [newKey, newValue, newType, upsertMeta]);
 
-	const handleEditStart = useCallback((id: string, value: string) => {
-		setEditingId(id);
-		setEditDraft(value);
-	}, []);
+	const handleEditStart = useCallback(
+		(id: string, value: string, valueType: MetadataValueType) => {
+			setEditingId(id);
+			setEditDraft(value);
+			setEditType(valueType);
+		},
+		[],
+	);
 
 	const handleEditCommit = useCallback(
-		(_id: string, key: string) => {
-			upsertMeta.mutate({ key, value: editDraft });
+		(key: string) => {
+			const v = editDraft.trim();
+			if (!validateMetadataValue(editType, v).ok) return;
+			upsertMeta.mutate({ key, value: v, valueType: editType });
 			setEditingId(null);
 		},
-		[editDraft, upsertMeta],
+		[editDraft, editType, upsertMeta],
 	);
 
 	if (!node) return null;
@@ -201,91 +346,134 @@ export function NodeSidePanel({
 					)}
 
 					<ul className="space-y-2">
-						{metadata.map((m) => (
-							<li key={m.id} className="flex items-center gap-2">
-								<span className="w-24 shrink-0 truncate rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-									{m.key}
-								</span>
-								{readOnly ? (
-									<span className="flex-1 truncate px-2 py-1 text-left text-xs text-foreground">
-										{m.value || (
-											<span className="italic text-muted-foreground">
-												（空）
-											</span>
-										)}
+						{metadata.map((m) => {
+							const valueType = m.valueType as MetadataValueType;
+							return (
+								<li key={m.id} className="flex items-start gap-2">
+									<span className="mt-1 flex w-24 shrink-0 flex-col gap-0.5">
+										<span className="truncate rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+											{m.key}
+										</span>
+										<span className="px-1 text-[10px] text-muted-foreground">
+											{METADATA_VALUE_TYPE_LABELS[valueType]}
+										</span>
 									</span>
-								) : editingId === m.id ? (
-									<Input
-										ref={editInputRef}
-										value={editDraft}
-										onChange={(e) => setEditDraft(e.target.value)}
-										onBlur={() => handleEditCommit(m.id, m.key)}
-										onKeyDown={(e) => {
-											if (e.key === "Enter") handleEditCommit(m.id, m.key);
-											if (e.key === "Escape") setEditingId(null);
-										}}
-										className="h-7 flex-1 text-xs"
-									/>
-								) : (
-									<button
-										type="button"
-										className="flex-1 truncate rounded px-2 py-1 text-left text-xs text-foreground hover:bg-accent"
-										onClick={() => handleEditStart(m.id, m.value)}
-										title="クリックして編集"
-									>
-										{m.value || (
-											<span className="italic text-muted-foreground">
-												（空）
-											</span>
-										)}
-									</button>
-								)}
-								{!readOnly && (
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										onClick={() => deleteMeta.mutate(m.id)}
-										className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-										aria-label="Delete metadata"
-									>
-										✕
-									</Button>
-								)}
-							</li>
-						))}
+									{readOnly ? (
+										<span className="mt-1 flex-1 truncate px-2 py-1 text-left text-xs text-foreground">
+											<MetadataValueDisplay type={valueType} value={m.value} />
+										</span>
+									) : editingId === m.id ? (
+										<div className="flex flex-1 flex-col gap-1">
+											<TypeSelect
+												value={editType}
+												onChange={setEditType}
+												className="h-7 w-full text-xs"
+											/>
+											<MetadataValueInput
+												type={editType}
+												value={editDraft}
+												onChange={setEditDraft}
+												inputRef={editInputRef}
+												onEnter={() => handleEditCommit(m.key)}
+												onEscape={() => setEditingId(null)}
+												className="h-7 w-full text-xs"
+											/>
+											{!editValidation.ok && (
+												<p className="text-[10px] text-destructive">
+													{editValidation.error}
+												</p>
+											)}
+											<div className="flex gap-1">
+												<Button
+													type="button"
+													variant="secondary"
+													size="sm"
+													onClick={() => handleEditCommit(m.key)}
+													disabled={!editValidation.ok}
+													className="h-6 text-xs"
+												>
+													保存
+												</Button>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onClick={() => setEditingId(null)}
+													className="h-6 text-xs"
+												>
+													キャンセル
+												</Button>
+											</div>
+										</div>
+									) : (
+										<button
+											type="button"
+											className="mt-1 flex-1 truncate rounded px-2 py-1 text-left text-xs text-foreground hover:bg-accent"
+											onClick={() => handleEditStart(m.id, m.value, valueType)}
+											title="クリックして編集"
+										>
+											<MetadataValueDisplay type={valueType} value={m.value} />
+										</button>
+									)}
+									{!readOnly && editingId !== m.id && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											onClick={() => deleteMeta.mutate(m.id)}
+											className="mt-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+											aria-label="Delete metadata"
+										>
+											✕
+										</Button>
+									)}
+								</li>
+							);
+						})}
 					</ul>
 
 					{!readOnly && (
-						<div className="mt-3 flex gap-2">
-							<Input
-								value={newKey}
-								onChange={(e) => setNewKey(e.target.value)}
-								placeholder="key"
-								className="h-7 w-24 shrink-0 text-xs"
-								onKeyDown={(e) => {
-									if (e.key === "Enter") handleAddMeta();
-								}}
-							/>
-							<Input
-								value={newValue}
-								onChange={(e) => setNewValue(e.target.value)}
-								placeholder="value"
-								className="h-7 flex-1 text-xs"
-								onKeyDown={(e) => {
-									if (e.key === "Enter") handleAddMeta();
-								}}
-							/>
-							<Button
-								type="button"
-								variant="secondary"
-								size="sm"
-								onClick={handleAddMeta}
-								disabled={!newKey.trim()}
-								className="h-7 shrink-0 text-xs"
-							>
-								追加
-							</Button>
+						<div className="mt-3 flex flex-col gap-2">
+							<div className="flex gap-2">
+								<Input
+									value={newKey}
+									onChange={(e) => setNewKey(e.target.value)}
+									placeholder="key"
+									className="h-7 w-24 shrink-0 text-xs"
+									onKeyDown={(e) => {
+										if (e.key === "Enter") handleAddMeta();
+									}}
+								/>
+								<TypeSelect
+									value={newType}
+									onChange={setNewType}
+									className="h-7 flex-1 text-xs"
+								/>
+							</div>
+							<div className="flex gap-2">
+								<MetadataValueInput
+									type={newType}
+									value={newValue}
+									onChange={setNewValue}
+									onEnter={handleAddMeta}
+									className="h-7 flex-1 text-xs"
+								/>
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									onClick={handleAddMeta}
+									disabled={!newKey.trim() || !newValidation.ok}
+									className="h-7 shrink-0 text-xs"
+								>
+									追加
+								</Button>
+							</div>
+							{!newValidation.ok && (
+								<p className="text-[10px] text-destructive">
+									{newValidation.error}
+								</p>
+							)}
 						</div>
 					)}
 				</section>

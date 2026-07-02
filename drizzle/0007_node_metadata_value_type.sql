@@ -1,0 +1,1 @@
+ALTER TABLE `node_metadata` ADD `value_type` text DEFAULT 'string' NOT NULL;

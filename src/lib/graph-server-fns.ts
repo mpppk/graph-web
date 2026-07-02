@@ -16,6 +16,11 @@ import {
 } from "#/db/schema";
 import { auth } from "#/lib/auth";
 import { requireUserId } from "#/lib/graph-auth-internal";
+import {
+	type MetadataValueType,
+	normalizeMetadataValueType,
+	validateMetadataValue,
+} from "#/lib/metadata-types";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -188,6 +193,7 @@ async function seedNodeTypeTemplate(
 				nodeId,
 				key: f.key,
 				value: "",
+				valueType: "string" as const,
 			})),
 		)
 		.onConflictDoNothing();
@@ -433,7 +439,11 @@ export const pasteNodes = createServerFn({ method: "POST" })
 				x: number;
 				y: number;
 				nodeType: string | null;
-				metadata: Array<{ key: string; value: string }>;
+				metadata: Array<{
+					key: string;
+					value: string;
+					valueType?: MetadataValueType;
+				}>;
 			}>;
 			edges: Array<{
 				sourceTempId: string;
@@ -475,6 +485,7 @@ export const pasteNodes = createServerFn({ method: "POST" })
 				nodeId: getNodeId(n.tempId),
 				key: m.key,
 				value: m.value,
+				valueType: normalizeMetadataValueType(m.valueType),
 			})),
 		);
 		if (allMetadata.length > 0) {
@@ -571,16 +582,32 @@ export const listNodeMetadata = createServerFn({ method: "GET" })
 
 export const upsertNodeMetadata = createServerFn({ method: "POST" })
 	.inputValidator(
-		(data: { nodeId: string; key: string; value: string }) => data,
+		(data: {
+			nodeId: string;
+			key: string;
+			value: string;
+			valueType?: MetadataValueType;
+		}) => data,
 	)
 	.handler(async ({ data }) => {
+		const valueType = normalizeMetadataValueType(data.valueType);
+		const result = validateMetadataValue(valueType, data.value);
+		if (!result.ok) {
+			throw new Error(result.error);
+		}
 		const id = crypto.randomUUID();
 		await db
 			.insert(nodeMetadata)
-			.values({ id, nodeId: data.nodeId, key: data.key, value: data.value })
+			.values({
+				id,
+				nodeId: data.nodeId,
+				key: data.key,
+				value: data.value,
+				valueType,
+			})
 			.onConflictDoUpdate({
 				target: [nodeMetadata.nodeId, nodeMetadata.key],
-				set: { value: data.value },
+				set: { value: data.value, valueType },
 			});
 		const [meta] = await db
 			.select()

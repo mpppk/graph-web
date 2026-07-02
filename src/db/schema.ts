@@ -55,6 +55,12 @@ export const nodeMetadata = sqliteTable(
 			.references(() => nodes.id, { onDelete: "cascade" }),
 		key: text("key").notNull(),
 		value: text("value").notNull().default(""),
+		// The kind of value stored. Existing rows default to "string".
+		valueType: text("value_type", {
+			enum: ["string", "number", "url", "boolean", "date"],
+		})
+			.notNull()
+			.default("string"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(t) => [uniqueIndex("node_metadata_node_id_key_unique").on(t.nodeId, t.key)],
