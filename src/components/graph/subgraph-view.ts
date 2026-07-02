@@ -23,10 +23,15 @@ export function groupNodesByType(nodes: RFNode[]): Map<string, RFNode[]> {
 // type become children (parentId + relative position) of a synthetic group
 // container node; other nodes stay top-level. When there is no layout yet (or
 // no active types) the input nodes are returned unchanged as a flat graph.
+//
+// When `movable` is true the group containers are draggable, so dragging a
+// group moves all of its children together (children follow their parent). The
+// movement is view-only; the caller decides whether/how to persist it.
 export function buildSubgraphDisplayNodes(
 	nodes: RFNode[],
 	subgraphTypes: Set<string>,
 	layout: SubgraphLayout | null,
+	movable = false,
 ): RFNode[] {
 	if (subgraphTypes.size === 0 || !layout) return nodes;
 
@@ -43,7 +48,9 @@ export function buildSubgraphDisplayNodes(
 			width: box.width,
 			height: box.height,
 			style: { width: box.width, height: box.height },
-			draggable: false,
+			// Draggable (when editable) so the whole group moves as one; never
+			// selectable so it stays out of selection/copy flows.
+			draggable: movable,
 			selectable: false,
 			// Render group containers behind their children.
 			zIndex: 0,

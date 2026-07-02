@@ -144,6 +144,13 @@ function GraphCanvasInner({
 	const [subgraphLayout, setSubgraphLayout] = useState<SubgraphLayout | null>(
 		null,
 	);
+	// Ephemeral drag positions layered on top of the ELK layout in subgraph view.
+	// nodeId (or group id) → position. Dragging a group moves the whole group;
+	// dragging a child moves it within its group. Cleared on every relayout, so
+	// the movement is view-only and not persisted.
+	const [subgraphPositions, setSubgraphPositions] = useState<
+		Map<string, { x: number; y: number }>
+	>(() => new Map());
 	const subgraphActive = subgraphTypes.size > 0;
 
 	const toggleSubgraphType = useCallback((typeName: string, on: boolean) => {
@@ -517,6 +524,7 @@ function GraphCanvasInner({
 	useEffect(() => {
 		if (!subgraphActive) {
 			setSubgraphLayout(null);
+			setSubgraphPositions(new Map());
 			return;
 		}
 		let cancelled = false;
@@ -526,24 +534,57 @@ function GraphCanvasInner({
 			subgraphTypes,
 			selectedAlgoRef.current.elkOptions,
 		).then((layout) => {
-			if (!cancelled) setSubgraphLayout(layout);
+			if (!cancelled) {
+				setSubgraphLayout(layout);
+				// A fresh layout supersedes any prior ephemeral drags.
+				setSubgraphPositions(new Map());
+			}
 		});
 		return () => {
 			cancelled = true;
 		};
 	}, [subgraphStructureKey, subgraphActive, subgraphTypes]);
 
-	const displayNodes = useMemo(
-		() => buildSubgraphDisplayNodes(nodes, subgraphTypes, subgraphLayout),
-		[nodes, subgraphTypes, subgraphLayout],
-	);
+	const displayNodes = useMemo(() => {
+		const base = buildSubgraphDisplayNodes(
+			nodes,
+			subgraphTypes,
+			subgraphLayout,
+			!readOnly,
+		);
+		if (!subgraphActive || subgraphPositions.size === 0) return base;
+		// Overlay ephemeral drag positions on the layout-derived positions.
+		return base.map((n) => {
+			const pos = subgraphPositions.get(n.id);
+			return pos ? { ...n, position: pos } : n;
+		});
+	}, [
+		nodes,
+		subgraphTypes,
+		subgraphLayout,
+		subgraphActive,
+		subgraphPositions,
+		readOnly,
+	]);
 
-	// While in subgraph view, node positions are layout-derived and ephemeral, so
-	// only propagate selection changes back to the flat source of truth.
+	// While in subgraph view, node positions are layout-derived and ephemeral.
+	// Selection is mirrored back to the flat source of truth (so copy/paste and
+	// side panels keep working), while drags are captured as view-only overrides
+	// that never touch the flat nodes or the database.
 	const handleNodesChange = useCallback<typeof onNodesChange>(
 		(changes) => {
 			if (subgraphActive) {
 				onNodesChange(changes.filter((c) => c.type === "select"));
+				setSubgraphPositions((prev) => {
+					let next = prev;
+					for (const c of changes) {
+						if (c.type === "position" && c.position) {
+							if (next === prev) next = new Map(prev);
+							next.set(c.id, c.position);
+						}
+					}
+					return next;
+				});
 				return;
 			}
 			onNodesChange(changes);
@@ -721,7 +762,7 @@ function GraphCanvasInner({
 									readOnly || subgraphActive ? null : ["Delete", "Backspace"]
 								}
 								nodesConnectable={!readOnly && !subgraphActive}
-								nodesDraggable={!readOnly && !subgraphActive}
+								nodesDraggable={!readOnly}
 								panOnDrag
 								selectionKeyCode="Shift"
 								fitView
