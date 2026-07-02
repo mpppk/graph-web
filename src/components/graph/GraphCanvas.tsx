@@ -184,7 +184,6 @@ function GraphCanvasInner({
 					data: {
 						label: newNode.label,
 						nodeType: newNode.nodeType ?? null,
-						autoEdit: true,
 					},
 				},
 			]);
