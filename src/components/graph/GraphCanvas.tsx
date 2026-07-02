@@ -16,7 +16,7 @@ import {
 	useNodesState,
 } from "@xyflow/react";
 import { EyeIcon, PencilIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { graphs } from "#/db/schema";
 import {
@@ -46,12 +46,19 @@ import { enabledCreationTypeNames } from "./creation-types";
 import { EdgeSidePanel } from "./EdgeSidePanel";
 import { EditableEdge } from "./EditableEdge";
 import { EditableNode } from "./EditableNode";
-import { computeElkLayout } from "./elk-layout";
+import {
+	computeElkLayout,
+	computeElkSubgraphLayout,
+	type SubgraphLayout,
+} from "./elk-layout";
 import { GraphCommandPalette } from "./GraphCommandPalette";
 import { type GraphMode, GraphModeProvider } from "./GraphModeContext";
 import { generateMermaidDiagram } from "./mermaid-export";
 import { NodeSidePanel } from "./NodeSidePanel";
 import { buildColorMap, NodeTypeProvider } from "./NodeTypeContext";
+import { SubgraphGroupNode } from "./SubgraphGroupNode";
+import { SubgraphSettings } from "./SubgraphSettings";
+import { buildSubgraphDisplayNodes } from "./subgraph-view";
 
 type Graph = typeof graphs.$inferSelect;
 
@@ -98,7 +105,7 @@ type ClipboardData = {
 
 const PASTE_OFFSET = 50;
 
-const nodeTypes = { default: EditableNode };
+const nodeTypes = { default: EditableNode, group: SubgraphGroupNode };
 const edgeTypes = { editable: EditableEdge };
 
 function GraphCanvasInner({
@@ -128,6 +135,25 @@ function GraphCanvasInner({
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 	const [mode, setMode] = useState<GraphMode>("edit");
 	const readOnly = mode === "read";
+
+	// Ephemeral: which node types are rendered as React Flow subgraphs. Reset on
+	// reload (not persisted).
+	const [subgraphTypes, setSubgraphTypes] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [subgraphLayout, setSubgraphLayout] = useState<SubgraphLayout | null>(
+		null,
+	);
+	const subgraphActive = subgraphTypes.size > 0;
+
+	const toggleSubgraphType = useCallback((typeName: string, on: boolean) => {
+		setSubgraphTypes((prev) => {
+			const next = new Set(prev);
+			if (on) next.add(typeName);
+			else next.delete(typeName);
+			return next;
+		});
+	}, []);
 
 	const { data: nodeTypeList = [] } = useQuery({
 		queryKey: ["nodeTypes", graph.id],
@@ -343,19 +369,19 @@ function GraphCanvasInner({
 
 	const onNodeDragStop = useCallback(
 		(_: MouseEvent | TouchEvent, node: RFNode) => {
-			if (readOnly) return;
+			if (readOnly || subgraphActive) return;
 			updatePosition.mutate({
 				id: node.id,
 				x: node.position.x,
 				y: node.position.y,
 			});
 		},
-		[updatePosition, readOnly],
+		[updatePosition, readOnly, subgraphActive],
 	);
 
 	const onSelectionDragStop = useCallback(
 		(_: React.MouseEvent, selectedNodes: RFNode[]) => {
-			if (readOnly) return;
+			if (readOnly || subgraphActive) return;
 			for (const node of selectedNodes) {
 				updatePosition.mutate({
 					id: node.id,
@@ -364,7 +390,7 @@ function GraphCanvasInner({
 				});
 			}
 		},
-		[updatePosition, readOnly],
+		[updatePosition, readOnly, subgraphActive],
 	);
 
 	const onNodeClick = useCallback((_: React.MouseEvent, node: RFNode) => {
@@ -466,6 +492,64 @@ function GraphCanvasInner({
 		);
 		navigator.clipboard.writeText(diagram);
 	}, [nodes, edges, nodeTypeList]);
+
+	// Latest values read inside the layout effect without making it re-run on
+	// every selection/position change (only structural changes should relayout).
+	const nodesRef = useRef(nodes);
+	nodesRef.current = nodes;
+	const edgesRef = useRef(edges);
+	edgesRef.current = edges;
+	const selectedAlgoRef = useRef(selectedAlgo);
+	selectedAlgoRef.current = selectedAlgo;
+
+	// Signature of everything that affects the hierarchical layout: node
+	// id→type, edge endpoints, active subgraph types, and the layout algorithm.
+	const subgraphStructureKey = useMemo(() => {
+		const nodePart = nodes
+			.map((n) => `${n.id}:${(n.data?.nodeType as string | null) ?? ""}`)
+			.join(",");
+		const edgePart = edges.map((e) => `${e.source}>${e.target}`).join(",");
+		const typePart = [...subgraphTypes].sort().join(",");
+		return `${selectedAlgo.id}|${typePart}|${nodePart}|${edgePart}`;
+	}, [nodes, edges, subgraphTypes, selectedAlgo]);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: relayout on structural changes (subgraphStructureKey) only, not on every selection
+	useEffect(() => {
+		if (!subgraphActive) {
+			setSubgraphLayout(null);
+			return;
+		}
+		let cancelled = false;
+		computeElkSubgraphLayout(
+			nodesRef.current,
+			edgesRef.current,
+			subgraphTypes,
+			selectedAlgoRef.current.elkOptions,
+		).then((layout) => {
+			if (!cancelled) setSubgraphLayout(layout);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [subgraphStructureKey, subgraphActive, subgraphTypes]);
+
+	const displayNodes = useMemo(
+		() => buildSubgraphDisplayNodes(nodes, subgraphTypes, subgraphLayout),
+		[nodes, subgraphTypes, subgraphLayout],
+	);
+
+	// While in subgraph view, node positions are layout-derived and ephemeral, so
+	// only propagate selection changes back to the flat source of truth.
+	const handleNodesChange = useCallback<typeof onNodesChange>(
+		(changes) => {
+			if (subgraphActive) {
+				onNodesChange(changes.filter((c) => c.type === "select"));
+				return;
+			}
+			onNodesChange(changes);
+		},
+		[onNodesChange, subgraphActive],
+	);
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -619,11 +703,11 @@ function GraphCanvasInner({
 					<div className="flex flex-1 overflow-hidden">
 						<div className="flex-1 overflow-hidden">
 							<ReactFlow
-								nodes={nodes}
+								nodes={displayNodes}
 								edges={edges}
 								nodeTypes={nodeTypes}
 								edgeTypes={edgeTypes}
-								onNodesChange={onNodesChange}
+								onNodesChange={handleNodesChange}
 								onEdgesChange={onEdgesChange}
 								onConnect={onConnect}
 								onNodeDragStop={onNodeDragStop}
@@ -633,9 +717,11 @@ function GraphCanvasInner({
 								onPaneClick={onPaneClick}
 								onNodesDelete={onNodesDelete}
 								onEdgesDelete={onEdgesDelete}
-								deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
-								nodesConnectable={!readOnly}
-								nodesDraggable={!readOnly}
+								deleteKeyCode={
+									readOnly || subgraphActive ? null : ["Delete", "Backspace"]
+								}
+								nodesConnectable={!readOnly && !subgraphActive}
+								nodesDraggable={!readOnly && !subgraphActive}
 								panOnDrag
 								selectionKeyCode="Shift"
 								fitView
@@ -648,31 +734,39 @@ function GraphCanvasInner({
 								<Controls />
 								<MiniMap />
 								<Panel position="top-left">
-									<div className="inline-flex items-center gap-0.5 rounded-md border bg-card p-0.5 shadow-sm">
-										<Button
-											type="button"
-											variant={readOnly ? "secondary" : "ghost"}
-											size="icon"
-											className="size-8"
-											aria-label="閲覧モード"
-											aria-pressed={readOnly}
-											title="閲覧モード"
-											onClick={() => setMode("read")}
-										>
-											<EyeIcon />
-										</Button>
-										<Button
-											type="button"
-											variant={readOnly ? "ghost" : "secondary"}
-											size="icon"
-											className="size-8"
-											aria-label="編集モード"
-											aria-pressed={!readOnly}
-											title="編集モード"
-											onClick={() => setMode("edit")}
-										>
-											<PencilIcon />
-										</Button>
+									<div className="inline-flex items-center gap-1">
+										<div className="inline-flex items-center gap-0.5 rounded-md border bg-card p-0.5 shadow-sm">
+											<Button
+												type="button"
+												variant={readOnly ? "secondary" : "ghost"}
+												size="icon"
+												className="size-8"
+												aria-label="閲覧モード"
+												aria-pressed={readOnly}
+												title="閲覧モード"
+												onClick={() => setMode("read")}
+											>
+												<EyeIcon />
+											</Button>
+											<Button
+												type="button"
+												variant={readOnly ? "ghost" : "secondary"}
+												size="icon"
+												className="size-8"
+												aria-label="編集モード"
+												aria-pressed={!readOnly}
+												title="編集モード"
+												onClick={() => setMode("edit")}
+											>
+												<PencilIcon />
+											</Button>
+										</div>
+										<div className="inline-flex items-center rounded-md border bg-card p-0.5 shadow-sm">
+											<SubgraphSettings
+												subgraphTypes={subgraphTypes}
+												onToggle={toggleSubgraphType}
+											/>
+										</div>
 									</div>
 								</Panel>
 							</ReactFlow>
