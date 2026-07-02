@@ -129,3 +129,20 @@ body,
     @apply bg-background text-foreground;
   }
 }
+
+/* Our nodes use React Flow's built-in "default" node type, which draws its own
+   frame (border/padding/background) and a selection box-shadow around the node.
+   Strip all of that so only the EditableNode's own box is rendered, and so a
+   selected node looks identical to an unselected one (selection stays
+   functional for the side panel and copy & paste). */
+.react-flow__node-default {
+  padding: 0 !important;
+  width: auto !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  text-align: inherit !important;
+  box-shadow: none !important;
+}
