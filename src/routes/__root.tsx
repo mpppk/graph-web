@@ -4,6 +4,7 @@ import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useState } from "react";
 import Header from "../components/Header";
+import { CommandPaletteProvider } from "../components/graph/CommandPaletteContext";
 
 import appCss from "../styles.css?url";
 
@@ -47,10 +48,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="font-sans antialiased [overflow-wrap:anywhere]">
 				<QueryClientProvider client={queryClient}>
-					<div className="flex h-dvh flex-col overflow-hidden">
-						<Header />
-						<main className="flex-1 min-h-0 overflow-auto">{children}</main>
-					</div>
+					<CommandPaletteProvider>
+						<div className="flex h-dvh flex-col overflow-hidden">
+							<Header />
+							<main className="flex-1 min-h-0 overflow-auto">{children}</main>
+						</div>
+					</CommandPaletteProvider>
 					<TanStackDevtools
 						config={{
 							position: "bottom-right",

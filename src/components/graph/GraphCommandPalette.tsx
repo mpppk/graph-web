@@ -3,6 +3,7 @@ import {
 	CheckIcon,
 	ChevronRightIcon,
 	ClipboardCopyIcon,
+	InfoIcon,
 	LayoutGridIcon,
 	PlusIcon,
 	SettingsIcon,
@@ -45,6 +46,8 @@ const cmdkClassName =
 export function GraphCommandPalette({
 	open,
 	onOpenChange,
+	graphName,
+	graphDescription,
 	onCopyMermaid,
 	onOpenSettings,
 	onRunLayout,
@@ -56,6 +59,8 @@ export function GraphCommandPalette({
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	graphName: string;
+	graphDescription: string | null;
 	onCopyMermaid: () => void;
 	onOpenSettings: () => void;
 	onRunLayout: (algo: LayoutAlgorithm) => void;
@@ -215,18 +220,52 @@ export function GraphCommandPalette({
 						</div>
 					)}
 
-					<CommandInput
-						placeholder={
-							mode === "ai"
-								? "AIに質問を入力… (Enterで送信)"
-								: "コマンドを検索、またはAIに質問…"
-						}
-						value={search}
-						onValueChange={setSearch}
-						onKeyDown={handleInputKeyDown}
-					/>
+					{page === "info" && mode === "command" && (
+						<div className="flex items-center gap-2 border-b px-3 py-2">
+							<button
+								type="button"
+								onClick={() => setPages((prev) => prev.slice(0, -1))}
+								className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<ArrowLeftIcon className="size-3.5" />
+								コマンドに戻る
+							</button>
+							<span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+								<InfoIcon className="size-3.5" />
+								グラフ情報
+							</span>
+						</div>
+					)}
 
-					{mode === "command" ? (
+					{!(mode === "command" && page === "info") && (
+						<CommandInput
+							placeholder={
+								mode === "ai"
+									? "AIに質問を入力… (Enterで送信)"
+									: "コマンドを検索、またはAIに質問…"
+							}
+							value={search}
+							onValueChange={setSearch}
+							onKeyDown={handleInputKeyDown}
+						/>
+					)}
+
+					{mode === "command" && page === "info" ? (
+						<div className="max-h-[300px] overflow-y-auto px-4 py-4">
+							<h2 className="truncate text-base font-semibold text-foreground">
+								{graphName}
+							</h2>
+							{graphDescription ? (
+								<p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+									{graphDescription}
+								</p>
+							) : (
+								<p className="mt-2 text-sm text-muted-foreground">
+									説明はありません。
+								</p>
+							)}
+						</div>
+					) : mode === "command" ? (
 						<CommandList>
 							<CommandEmpty>該当するコマンドがありません。</CommandEmpty>
 
@@ -239,6 +278,17 @@ export function GraphCommandPalette({
 										>
 											<ClipboardCopyIcon />
 											Copy as Mermaid
+										</CommandItem>
+										<CommandItem
+											keywords={["info", "情報", "説明", "description", "詳細"]}
+											onSelect={() => {
+												setSearch("");
+												setPages((prev) => [...prev, "info"]);
+											}}
+										>
+											<InfoIcon />
+											グラフ情報を表示…
+											<ChevronRightIcon className="ml-auto" />
 										</CommandItem>
 										<CommandItem
 											keywords={["settings", "設定", "type", "タイプ", "管理"]}

@@ -22,6 +22,8 @@ function renderPalette(overrides: Record<string, unknown> = {}) {
 	const props = {
 		open: true,
 		onOpenChange: vi.fn(),
+		graphName: "Test Graph",
+		graphDescription: "Test description",
 		onCopyMermaid: vi.fn(),
 		onOpenSettings: vi.fn(),
 		onRunLayout: vi.fn(),
