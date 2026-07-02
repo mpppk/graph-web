@@ -105,13 +105,6 @@ export function GraphTable({
 		return map;
 	}, [metadata]);
 
-	// Distinct metadata keys across the graph become dynamic columns.
-	const metadataKeys = useMemo(() => {
-		const keys = new Set<string>();
-		for (const m of metadata) keys.add(m.key);
-		return [...keys].sort((a, b) => a.localeCompare(b));
-	}, [metadata]);
-
 	// Node types present among the nodes (plus a slot for untyped nodes).
 	const presentTypes = useMemo(() => {
 		const set = new Set<string>();
@@ -152,6 +145,17 @@ export function GraphTable({
 		if (activeTypes === null) return sorted;
 		return sorted.filter((n) => activeTypes.has(n.nodeType ?? NO_TYPE));
 	}, [nodeList, activeTypes]);
+
+	// Dynamic columns: only metadata keys held by at least one currently
+	// displayed (filtered) node. Keys no visible row has are dropped.
+	const metadataKeys = useMemo(() => {
+		const keys = new Set<string>();
+		for (const n of filteredNodes) {
+			const byKey = metadataByNode.get(n.id);
+			if (byKey) for (const key of byKey.keys()) keys.add(key);
+		}
+		return [...keys].sort((a, b) => a.localeCompare(b));
+	}, [filteredNodes, metadataByNode]);
 
 	return (
 		<div className="mx-auto max-w-6xl px-6 py-8">

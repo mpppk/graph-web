@@ -130,6 +130,17 @@ test("filtering by node type hides non-matching rows", () => {
 	expect(screen.getByText("Beta")).toBeDefined();
 });
 
+test("filtering drops columns no visible row has", () => {
+	renderTable();
+	// Leave only Feature (Beta) visible. Beta has only "description", so the
+	// "priority" column (held solely by the KPI node Alpha) must disappear.
+	fireEvent.click(screen.getByRole("button", { name: "KPI" }));
+	fireEvent.click(screen.getByRole("button", { name: "タイプなし" }));
+
+	const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+	expect(headers).toEqual(["名前", "タイプ", "description"]);
+});
+
 test("絞り込みを解除 restores all rows", () => {
 	renderTable();
 	fireEvent.click(screen.getByRole("button", { name: "KPI" }));
