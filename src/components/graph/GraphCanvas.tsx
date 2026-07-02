@@ -35,6 +35,7 @@ import {
 	updateNodeLabel,
 	updateNodePosition,
 } from "#/lib/graph-server-fns";
+import type { MetadataValueType } from "#/lib/metadata-types";
 import { useCommandPalette } from "./CommandPaletteContext";
 import {
 	DEFAULT_LAYOUT_ALGORITHM,
@@ -82,7 +83,11 @@ type ClipboardData = {
 		nodeType: string | null;
 		relativeX: number;
 		relativeY: number;
-		metadata: Array<{ key: string; value: string }>;
+		metadata: Array<{
+			key: string;
+			value: string;
+			valueType: MetadataValueType;
+		}>;
 	}>;
 	edges: Array<{
 		sourceOriginalId: string;
@@ -512,7 +517,11 @@ function GraphCanvasInner({
 						} catch {
 							return {
 								nodeId: node.id,
-								metadata: [] as Array<{ key: string; value: string }>,
+								metadata: [] as Array<{
+									key: string;
+									value: string;
+									valueType: MetadataValueType;
+								}>,
 							};
 						}
 					}),
@@ -533,6 +542,7 @@ function GraphCanvasInner({
 							metadata: (metaMap.get(n.id) ?? []).map((m) => ({
 								key: m.key,
 								value: m.value,
+								valueType: m.valueType,
 							})),
 						})),
 						edges: selectedEdges.map((edge) => ({
