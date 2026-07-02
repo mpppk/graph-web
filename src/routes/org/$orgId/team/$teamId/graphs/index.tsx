@@ -1,10 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	createFileRoute,
-	Link,
-	redirect,
-	useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TeamCommandPalette } from "#/components/team/TeamCommandPalette";
@@ -26,6 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { Skeleton } from "#/components/ui/skeleton";
 import { Textarea } from "#/components/ui/textarea";
 import type { graphs } from "#/db/schema";
 import { getSession } from "#/lib/graph-auth";
@@ -43,6 +39,8 @@ import {
 } from "#/lib/org-server-fns";
 
 type Graph = typeof graphs.$inferSelect;
+
+const SKELETON_ROWS = ["skeleton-1", "skeleton-2", "skeleton-3"];
 
 export const Route = createFileRoute("/org/$orgId/team/$teamId/graphs/")({
 	beforeLoad: async () => {
@@ -70,12 +68,7 @@ function TeamGraphsPage() {
 	const navigate = useNavigate();
 	const qc = useQueryClient();
 
-	const { data: org } = useQuery({
-		queryKey: ["org-members", orgId],
-		queryFn: () => listMembers({ data: { orgId } }),
-	});
-
-	const { data: graphList = [] } = useQuery({
+	const { data: graphList = [], isPending: graphsPending } = useQuery({
 		queryKey: ["team-graphs", teamId],
 		queryFn: () => listGraphs({ data: { teamId } }),
 	});
@@ -190,22 +183,6 @@ function TeamGraphsPage() {
 
 	return (
 		<main className="mx-auto max-w-4xl px-6 py-8">
-			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-				<Link to="/orgs" className="hover:text-foreground transition-colors">
-					Organizations
-				</Link>
-				<span>/</span>
-				<Link
-					to="/org/$orgId"
-					params={{ orgId }}
-					className="hover:text-foreground transition-colors"
-				>
-					{org?.name ?? orgId}
-				</Link>
-				<span>/</span>
-				<span className="font-medium text-foreground">Graphs</span>
-			</div>
-
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-1">
@@ -230,7 +207,22 @@ function TeamGraphsPage() {
 					</Button>
 				</div>
 
-				{(graphList as Graph[]).length === 0 ? (
+				{graphsPending ? (
+					<ul className="space-y-2">
+						{SKELETON_ROWS.map((key) => (
+							<li key={key}>
+								<Card>
+									<CardContent className="flex items-start justify-between p-4">
+										<div className="min-w-0 flex-1 space-y-2">
+											<Skeleton className="h-5 w-1/3" />
+											<Skeleton className="h-3 w-24" />
+										</div>
+									</CardContent>
+								</Card>
+							</li>
+						))}
+					</ul>
+				) : (graphList as Graph[]).length === 0 ? (
 					<p className="py-8 text-center text-muted-foreground">
 						No graphs yet. Create one to get started.
 					</p>
