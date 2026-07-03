@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { SparklesIcon } from "lucide-react";
+import { SquareChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TeamCommandPalette } from "#/components/team/TeamCommandPalette";
 import { Button } from "#/components/ui/button";
@@ -195,7 +195,7 @@ function TeamGraphsPage() {
 							title="コマンドパレットを開く (⌘K)"
 							onClick={() => setPaletteOpen(true)}
 						>
-							<SparklesIcon />
+							<SquareChevronRightIcon />
 						</Button>
 					</div>
 					<Button

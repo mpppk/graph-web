@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { SparklesIcon } from "lucide-react";
+import { SquareChevronRightIcon } from "lucide-react";
 import { authClient } from "#/lib/auth-client";
 import { getGraph } from "#/lib/graph-server-fns";
 import { getTeam } from "#/lib/org-server-fns";
@@ -61,7 +61,7 @@ function HeaderBreadcrumb() {
 							title="コマンドパレットを開く (⌘K)"
 							onClick={() => openPalette()}
 						>
-							<SparklesIcon />
+							<SquareChevronRightIcon />
 						</Button>
 					)}
 				</>
