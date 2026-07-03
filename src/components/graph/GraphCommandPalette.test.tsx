@@ -26,6 +26,7 @@ function renderPalette(overrides: Record<string, unknown> = {}) {
 		graphDescription: "Test description",
 		onCopyMermaid: vi.fn(),
 		onOpenSettings: vi.fn(),
+		onOpenTable: vi.fn(),
 		onRunLayout: vi.fn(),
 		onAddNode: vi.fn(),
 		creationTypes: ["KPI", "Feature"],
@@ -40,10 +41,18 @@ function renderPalette(overrides: Record<string, unknown> = {}) {
 test("shows the root commands and the AI entry", () => {
 	renderPalette();
 	expect(screen.getByText("Copy as Mermaid")).toBeDefined();
+	expect(screen.getByText("テーブル表示")).toBeDefined();
 	expect(screen.getByText("設定を開く")).toBeDefined();
 	expect(screen.getByText("再配置…")).toBeDefined();
 	expect(screen.getByText("ノードを追加…")).toBeDefined();
 	expect(screen.getByText("AIに質問する")).toBeDefined();
+});
+
+test("テーブル表示 invokes onOpenTable and closes", () => {
+	const props = renderPalette();
+	fireEvent.click(screen.getByText("テーブル表示"));
+	expect(props.onOpenTable).toHaveBeenCalledTimes(1);
+	expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
 test("running a command invokes the handler and closes", () => {

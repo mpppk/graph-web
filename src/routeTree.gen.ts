@@ -17,11 +17,13 @@ import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as GraphsGraphIdIndexRouteImport } from './routes/graphs/$graphId/index'
 import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
+import { Route as GraphsGraphIdTableRouteImport } from './routes/graphs/$graphId/table'
 import { Route as GraphsGraphIdSettingsRouteImport } from './routes/graphs/$graphId/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdSettingsRouteImport } from './routes/org/$orgId/team/$teamId/settings'
 import { Route as OrgOrgIdTeamTeamIdGraphsIndexRouteImport } from './routes/org/$orgId/team/$teamId/graphs/index'
 import { Route as OrgOrgIdTeamTeamIdGraphsGraphIdIndexRouteImport } from './routes/org/$orgId/team/$teamId/graphs/$graphId/index'
+import { Route as OrgOrgIdTeamTeamIdGraphsGraphIdTableRouteImport } from './routes/org/$orgId/team/$teamId/graphs/$graphId/table'
 import { Route as OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRouteImport } from './routes/org/$orgId/team/$teamId/graphs/$graphId/settings'
 
 const OrgsRoute = OrgsRouteImport.update({
@@ -64,6 +66,11 @@ const OrgOrgIdSettingsRoute = OrgOrgIdSettingsRouteImport.update({
   path: '/org/$orgId/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GraphsGraphIdTableRoute = GraphsGraphIdTableRouteImport.update({
+  id: '/graphs/$graphId/table',
+  path: '/graphs/$graphId/table',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GraphsGraphIdSettingsRoute = GraphsGraphIdSettingsRouteImport.update({
   id: '/graphs/$graphId/settings',
   path: '/graphs/$graphId/settings',
@@ -92,6 +99,12 @@ const OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute =
     path: '/org/$orgId/team/$teamId/graphs/$graphId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute =
+  OrgOrgIdTeamTeamIdGraphsGraphIdTableRouteImport.update({
+    id: '/org/$orgId/team/$teamId/graphs/$graphId/table',
+    path: '/org/$orgId/team/$teamId/graphs/$graphId/table',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute =
   OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRouteImport.update({
     id: '/org/$orgId/team/$teamId/graphs/$graphId/settings',
@@ -107,12 +120,14 @@ export interface FileRoutesByFullPath {
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId/': typeof GraphsGraphIdIndexRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/graphs/': typeof OrgOrgIdTeamTeamIdGraphsIndexRoute
   '/org/$orgId/team/$teamId/graphs/$graphId/settings': typeof OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute
+  '/org/$orgId/team/$teamId/graphs/$graphId/table': typeof OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute
   '/org/$orgId/team/$teamId/graphs/$graphId/': typeof OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -123,12 +138,14 @@ export interface FileRoutesByTo {
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId': typeof GraphsGraphIdIndexRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/graphs': typeof OrgOrgIdTeamTeamIdGraphsIndexRoute
   '/org/$orgId/team/$teamId/graphs/$graphId/settings': typeof OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute
+  '/org/$orgId/team/$teamId/graphs/$graphId/table': typeof OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute
   '/org/$orgId/team/$teamId/graphs/$graphId': typeof OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute
 }
 export interface FileRoutesById {
@@ -140,12 +157,14 @@ export interface FileRoutesById {
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
+  '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/graphs/$graphId/': typeof GraphsGraphIdIndexRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/graphs/': typeof OrgOrgIdTeamTeamIdGraphsIndexRoute
   '/org/$orgId/team/$teamId/graphs/$graphId/settings': typeof OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute
+  '/org/$orgId/team/$teamId/graphs/$graphId/table': typeof OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute
   '/org/$orgId/team/$teamId/graphs/$graphId/': typeof OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -158,12 +177,14 @@ export interface FileRouteTypes {
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
     | '/graphs/$graphId/'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/graphs/'
     | '/org/$orgId/team/$teamId/graphs/$graphId/settings'
+    | '/org/$orgId/team/$teamId/graphs/$graphId/table'
     | '/org/$orgId/team/$teamId/graphs/$graphId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,12 +195,14 @@ export interface FileRouteTypes {
     | '/graphs'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
     | '/graphs/$graphId'
     | '/org/$orgId'
     | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/graphs'
     | '/org/$orgId/team/$teamId/graphs/$graphId/settings'
+    | '/org/$orgId/team/$teamId/graphs/$graphId/table'
     | '/org/$orgId/team/$teamId/graphs/$graphId'
   id:
     | '__root__'
@@ -190,12 +213,14 @@ export interface FileRouteTypes {
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
+    | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
     | '/graphs/$graphId/'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/graphs/'
     | '/org/$orgId/team/$teamId/graphs/$graphId/settings'
+    | '/org/$orgId/team/$teamId/graphs/$graphId/table'
     | '/org/$orgId/team/$teamId/graphs/$graphId/'
   fileRoutesById: FileRoutesById
 }
@@ -207,12 +232,14 @@ export interface RootRouteChildren {
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   GraphsGraphIdSettingsRoute: typeof GraphsGraphIdSettingsRoute
+  GraphsGraphIdTableRoute: typeof GraphsGraphIdTableRoute
   OrgOrgIdSettingsRoute: typeof OrgOrgIdSettingsRoute
   GraphsGraphIdIndexRoute: typeof GraphsGraphIdIndexRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdTeamTeamIdSettingsRoute: typeof OrgOrgIdTeamTeamIdSettingsRoute
   OrgOrgIdTeamTeamIdGraphsIndexRoute: typeof OrgOrgIdTeamTeamIdGraphsIndexRoute
   OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute: typeof OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute
+  OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute: typeof OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute
   OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute: typeof OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute
 }
 
@@ -274,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgOrgIdSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/graphs/$graphId/table': {
+      id: '/graphs/$graphId/table'
+      path: '/graphs/$graphId/table'
+      fullPath: '/graphs/$graphId/table'
+      preLoaderRoute: typeof GraphsGraphIdTableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/graphs/$graphId/settings': {
       id: '/graphs/$graphId/settings'
       path: '/graphs/$graphId/settings'
@@ -309,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgOrgIdTeamTeamIdGraphsGraphIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/$orgId/team/$teamId/graphs/$graphId/table': {
+      id: '/org/$orgId/team/$teamId/graphs/$graphId/table'
+      path: '/org/$orgId/team/$teamId/graphs/$graphId/table'
+      fullPath: '/org/$orgId/team/$teamId/graphs/$graphId/table'
+      preLoaderRoute: typeof OrgOrgIdTeamTeamIdGraphsGraphIdTableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/$orgId/team/$teamId/graphs/$graphId/settings': {
       id: '/org/$orgId/team/$teamId/graphs/$graphId/settings'
       path: '/org/$orgId/team/$teamId/graphs/$graphId/settings'
@@ -327,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   GraphsGraphIdSettingsRoute: GraphsGraphIdSettingsRoute,
+  GraphsGraphIdTableRoute: GraphsGraphIdTableRoute,
   OrgOrgIdSettingsRoute: OrgOrgIdSettingsRoute,
   GraphsGraphIdIndexRoute: GraphsGraphIdIndexRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
@@ -334,6 +376,8 @@ const rootRouteChildren: RootRouteChildren = {
   OrgOrgIdTeamTeamIdGraphsIndexRoute: OrgOrgIdTeamTeamIdGraphsIndexRoute,
   OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute:
     OrgOrgIdTeamTeamIdGraphsGraphIdSettingsRoute,
+  OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute:
+    OrgOrgIdTeamTeamIdGraphsGraphIdTableRoute,
   OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute:
     OrgOrgIdTeamTeamIdGraphsGraphIdIndexRoute,
 }
