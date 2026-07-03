@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as GraphsGraphIdIndexRouteImport } from './routes/graphs/$graphId/index'
 import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const GraphsIndexRoute = GraphsIndexRouteImport.update({
   id: '/graphs/',
   path: '/graphs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/api/mcp'
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/api/mcp'
     | '/graphs'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/api/mcp'
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   LoginRoute: typeof LoginRoute
   OrgsRoute: typeof OrgsRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   GraphsGraphIdSettingsRoute: typeof GraphsGraphIdSettingsRoute
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/graphs'
       fullPath: '/graphs/'
       preLoaderRoute: typeof GraphsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/org/$orgId/': {
@@ -365,6 +385,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInvitationRoute: AcceptInvitationRoute,
   LoginRoute: LoginRoute,
   OrgsRoute: OrgsRoute,
+  ApiMcpRoute: ApiMcpRoute,
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   GraphsGraphIdSettingsRoute: GraphsGraphIdSettingsRoute,
