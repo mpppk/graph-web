@@ -15,6 +15,7 @@ import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
 import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
@@ -57,6 +58,11 @@ const GraphsIndexRoute = GraphsIndexRouteImport.update({
 const OauthConsentRoute = OauthConsentRouteImport.update({
   id: '/oauth/consent',
   path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotwellKnownOauthProtectedResourceRoute =
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/orgs': typeof OrgsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/orgs': typeof OrgsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/orgs': typeof OrgsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
     | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
     | '/oauth/consent'
     | '/graphs'
     | '/api/auth/$'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
     | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   OrgsRoute: typeof OrgsRoute
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   OauthConsentRoute: typeof OauthConsentRoute
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -326,6 +339,13 @@ declare module '@tanstack/react-router' {
       path: '/oauth/consent'
       fullPath: '/oauth/consent'
       preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -431,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:
     DotwellKnownOauthProtectedResourceRoute,
+  ApiMcpRoute: ApiMcpRoute,
   OauthConsentRoute: OauthConsentRoute,
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
