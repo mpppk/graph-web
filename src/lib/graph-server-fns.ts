@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import * as authSchema from "#/db/auth-schema";
 import { db } from "#/db/index";
 import {
@@ -17,13 +17,13 @@ import { requireUserId } from "#/lib/graph-auth-internal";
 import {
 	type MetadataValueType,
 	normalizeMetadataValueType,
-	validateMetadataValue,
 } from "#/lib/metadata-types";
 import {
 	assertGraphAccess,
 	assertOrgMember,
 	assertTeamAccess,
 } from "#/lib/services/access";
+import * as graphService from "#/lib/services/graph-service";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -78,79 +78,6 @@ async function requireOwnedNodeType(typeId: string, userId: string) {
 		throw new Error("Unsupported node type scope");
 	}
 	return type;
-}
-
-// Add a node type's template metadata keys to a node (empty values, never
-// overwriting existing entries). Resolves the applicable type definition using
-// graph > team > org > user precedence. Returns the keys that were seeded.
-async function seedNodeTypeTemplate(
-	nodeId: string,
-	graph: typeof graphs.$inferSelect,
-	nodeType: string,
-): Promise<string[]> {
-	const conditions: ReturnType<typeof and>[] = [
-		and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
-		and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, graph.id)),
-	];
-
-	if (graph.teamId) {
-		const [graphTeam] = await db
-			.select()
-			.from(authSchema.team)
-			.where(eq(authSchema.team.id, graph.teamId));
-		if (graphTeam) {
-			conditions.push(
-				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
-			);
-			conditions.push(
-				and(
-					eq(nodeTypes.scope, "org"),
-					eq(nodeTypes.scopeId, graphTeam.organizationId),
-				),
-			);
-		}
-	}
-
-	const matches = await db
-		.select()
-		.from(nodeTypes)
-		.where(
-			and(
-				eq(nodeTypes.name, nodeType),
-				or(...(conditions as Parameters<typeof or>)),
-			),
-		);
-
-	// graph > team > org > user precedence
-	const scopePriority = { graph: 0, team: 1, org: 2, user: 3 } as Record<
-		string,
-		number
-	>;
-	const type = matches.sort(
-		(a, b) => (scopePriority[a.scope] ?? 99) - (scopePriority[b.scope] ?? 99),
-	)[0];
-	if (!type) return [];
-
-	const fields = await db
-		.select()
-		.from(nodeTypeFields)
-		.where(eq(nodeTypeFields.nodeTypeId, type.id));
-	if (!fields.length) return [];
-
-	await db
-		.insert(nodeMetadata)
-		.values(
-			fields.map((f) => ({
-				id: crypto.randomUUID(),
-				nodeId,
-				key: f.key,
-				value: "",
-				valueType: "string" as const,
-			})),
-		)
-		.onConflictDoNothing();
-
-	return fields.map((f) => f.key);
 }
 
 // Apply a template to a freshly created graph by seeding creation-type
@@ -228,13 +155,10 @@ export const listGraphs = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		if (data?.teamId) {
-			return db.select().from(graphs).where(eq(graphs.teamId, data.teamId));
+			return graphService.listGraphsForTeam(userId, data.teamId);
 		}
 		// Legacy: personal graphs with no team
-		return db
-			.select()
-			.from(graphs)
-			.where(and(eq(graphs.userId, userId), isNull(graphs.teamId)));
+		return graphService.listPersonalGraphs(userId);
 	});
 
 export const createGraph = createServerFn({ method: "POST" })
@@ -273,32 +197,20 @@ export const updateGraphName = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; name: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await assertGraphAccess(data.id, userId);
-		await db
-			.update(graphs)
-			.set({ name: data.name })
-			.where(eq(graphs.id, data.id));
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(eq(graphs.id, data.id));
-		return graph;
+		return graphService.updateGraph(userId, {
+			graphId: data.id,
+			name: data.name,
+		});
 	});
 
 export const updateGraphDescription = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; description: string }) => data)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await assertGraphAccess(data.id, userId);
-		await db
-			.update(graphs)
-			.set({ description: data.description })
-			.where(eq(graphs.id, data.id));
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(eq(graphs.id, data.id));
-		return graph;
+		return graphService.updateGraph(userId, {
+			graphId: data.id,
+			description: data.description,
+		});
 	});
 
 export const deleteGraph = createServerFn({ method: "POST" })
@@ -348,7 +260,7 @@ export const createNode = createServerFn({ method: "POST" })
 			nodeType,
 		});
 		// Seed the type's template metadata so a typed node starts with its fields.
-		if (nodeType) await seedNodeTypeTemplate(id, graph, nodeType);
+		if (nodeType) await graphService.seedNodeTypeTemplate(id, graph, nodeType);
 		const [node] = await db.select().from(nodes).where(eq(nodes.id, id));
 		return node;
 	});
@@ -356,29 +268,29 @@ export const createNode = createServerFn({ method: "POST" })
 export const updateNodePosition = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; x: number; y: number }) => data)
 	.handler(async ({ data }) => {
-		await db
-			.update(nodes)
-			.set({ x: data.x, y: data.y })
-			.where(eq(nodes.id, data.id));
-		return { success: true };
+		const userId = await requireUserId();
+		return graphService.updateNodePosition(userId, {
+			nodeId: data.id,
+			x: data.x,
+			y: data.y,
+		});
 	});
 
 export const updateNodeLabel = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; label: string }) => data)
 	.handler(async ({ data }) => {
-		await db
-			.update(nodes)
-			.set({ label: data.label })
-			.where(eq(nodes.id, data.id));
-		const [node] = await db.select().from(nodes).where(eq(nodes.id, data.id));
-		return node;
+		const userId = await requireUserId();
+		return graphService.updateNodeLabel(userId, {
+			nodeId: data.id,
+			label: data.label,
+		});
 	});
 
 export const deleteNode = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		await db.delete(nodes).where(eq(nodes.id, data.id));
-		return { success: true };
+		const userId = await requireUserId();
+		return graphService.deleteNodesById(userId, { nodeIds: [data.id] });
 	});
 
 export const pasteNodes = createServerFn({ method: "POST" })
@@ -478,7 +390,8 @@ export const pasteNodes = createServerFn({ method: "POST" })
 export const listEdges = createServerFn({ method: "GET" })
 	.inputValidator((data: { graphId: string }) => data)
 	.handler(async ({ data }) => {
-		return db.select().from(edges).where(eq(edges.graphId, data.graphId));
+		const userId = await requireUserId();
+		return graphService.listEdgesForGraph(userId, data.graphId);
 	});
 
 export const createEdge = createServerFn({ method: "POST" })
@@ -491,34 +404,35 @@ export const createEdge = createServerFn({ method: "POST" })
 		}) => data,
 	)
 	.handler(async ({ data }) => {
-		const id = crypto.randomUUID();
-		await db.insert(edges).values({
-			id,
+		const userId = await requireUserId();
+		const [edge] = await graphService.createEdgesInGraph(userId, {
 			graphId: data.graphId,
-			sourceNodeId: data.sourceNodeId,
-			targetNodeId: data.targetNodeId,
-			label: data.label ?? "",
+			edges: [
+				{
+					sourceNodeId: data.sourceNodeId,
+					targetNodeId: data.targetNodeId,
+					label: data.label,
+				},
+			],
 		});
-		const [edge] = await db.select().from(edges).where(eq(edges.id, id));
 		return edge;
 	});
 
 export const updateEdgeLabel = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; label: string }) => data)
 	.handler(async ({ data }) => {
-		await db
-			.update(edges)
-			.set({ label: data.label })
-			.where(eq(edges.id, data.id));
-		const [edge] = await db.select().from(edges).where(eq(edges.id, data.id));
-		return edge;
+		const userId = await requireUserId();
+		return graphService.updateEdgeLabel(userId, {
+			edgeId: data.id,
+			label: data.label,
+		});
 	});
 
 export const deleteEdge = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		await db.delete(edges).where(eq(edges.id, data.id));
-		return { success: true };
+		const userId = await requireUserId();
+		return graphService.deleteEdgesById(userId, { edgeIds: [data.id] });
 	});
 
 // ── Metadata operations ───────────────────────────────────────────────────────
@@ -526,10 +440,8 @@ export const deleteEdge = createServerFn({ method: "POST" })
 export const listNodeMetadata = createServerFn({ method: "GET" })
 	.inputValidator((data: { nodeId: string }) => data)
 	.handler(async ({ data }) => {
-		return db
-			.select()
-			.from(nodeMetadata)
-			.where(eq(nodeMetadata.nodeId, data.nodeId));
+		const userId = await requireUserId();
+		return graphService.listMetadataForNode(userId, data.nodeId);
 	});
 
 // All metadata rows for the nodes of a graph, in one query. Used by the table
@@ -561,42 +473,15 @@ export const upsertNodeMetadata = createServerFn({ method: "POST" })
 		}) => data,
 	)
 	.handler(async ({ data }) => {
-		const valueType = normalizeMetadataValueType(data.valueType);
-		const result = validateMetadataValue(valueType, data.value);
-		if (!result.ok) {
-			throw new Error(result.error);
-		}
-		const id = crypto.randomUUID();
-		await db
-			.insert(nodeMetadata)
-			.values({
-				id,
-				nodeId: data.nodeId,
-				key: data.key,
-				value: data.value,
-				valueType,
-			})
-			.onConflictDoUpdate({
-				target: [nodeMetadata.nodeId, nodeMetadata.key],
-				set: { value: data.value, valueType },
-			});
-		const [meta] = await db
-			.select()
-			.from(nodeMetadata)
-			.where(
-				and(
-					eq(nodeMetadata.nodeId, data.nodeId),
-					eq(nodeMetadata.key, data.key),
-				),
-			);
-		return meta;
+		const userId = await requireUserId();
+		return graphService.upsertNodeMetadataEntry(userId, data);
 	});
 
 export const deleteNodeMetadata = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		await db.delete(nodeMetadata).where(eq(nodeMetadata.id, data.id));
-		return { success: true };
+		const userId = await requireUserId();
+		return graphService.deleteNodeMetadataById(userId, data.id);
 	});
 
 // ── Node type operations ──────────────────────────────────────────────────────
@@ -1016,23 +901,11 @@ export const deleteNodeTypeField = createServerFn({ method: "POST" })
 export const setNodeTypeWithTemplate = createServerFn({ method: "POST" })
 	.inputValidator((data: { id: string; nodeType: string | null }) => data)
 	.handler(async ({ data }) => {
-		await db
-			.update(nodes)
-			.set({ nodeType: data.nodeType })
-			.where(eq(nodes.id, data.id));
-
-		if (!data.nodeType) return { success: true, addedKeys: [] as string[] };
-
-		const [node] = await db.select().from(nodes).where(eq(nodes.id, data.id));
-		if (!node) return { success: true, addedKeys: [] as string[] };
-		const [graph] = await db
-			.select()
-			.from(graphs)
-			.where(eq(graphs.id, node.graphId));
-		if (!graph) return { success: true, addedKeys: [] as string[] };
-
-		const addedKeys = await seedNodeTypeTemplate(data.id, graph, data.nodeType);
-		return { success: true, addedKeys };
+		const userId = await requireUserId();
+		return graphService.setNodeType(userId, {
+			nodeId: data.id,
+			nodeType: data.nodeType,
+		});
 	});
 
 // ── Creation type settings ────────────────────────────────────────────────────
