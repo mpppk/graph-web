@@ -473,3 +473,212 @@ export async function deleteNodeMetadataById(
 	await db.delete(nodeMetadata).where(eq(nodeMetadata.id, metadataId));
 	return { success: true };
 }
+
+// ── MCP batch writes ──────────────────────────────────────────────────────────
+
+// Every node type name applicable to a graph (for error messages).
+async function listApplicableNodeTypeNames(
+	graph: typeof graphs.$inferSelect,
+): Promise<string[]> {
+	const conditions: ReturnType<typeof and>[] = [
+		and(eq(nodeTypes.scope, "user"), eq(nodeTypes.scopeId, graph.userId)),
+		and(eq(nodeTypes.scope, "graph"), eq(nodeTypes.scopeId, graph.id)),
+	];
+	if (graph.teamId) {
+		const [graphTeam] = await db
+			.select()
+			.from(authSchema.team)
+			.where(eq(authSchema.team.id, graph.teamId));
+		if (graphTeam) {
+			conditions.push(
+				and(eq(nodeTypes.scope, "team"), eq(nodeTypes.scopeId, graph.teamId)),
+			);
+			conditions.push(
+				and(
+					eq(nodeTypes.scope, "org"),
+					eq(nodeTypes.scopeId, graphTeam.organizationId),
+				),
+			);
+		}
+	}
+	const rows = await db
+		.select({ name: nodeTypes.name })
+		.from(nodeTypes)
+		.where(or(...(conditions as Parameters<typeof or>)));
+	return [...new Set(rows.map((r) => r.name))].sort();
+}
+
+// Resolve a node type by name within the graph's scopes. Unknown names are an
+// error listing the valid options so LLM clients can self-correct.
+export async function resolveNodeTypeByName(
+	graph: typeof graphs.$inferSelect,
+	name: string,
+) {
+	const matches = await findNodeTypesByName(graph, name);
+	const type = pickByScopePrecedence(matches);
+	if (!type) {
+		const available = await listApplicableNodeTypeNames(graph);
+		throw new Error(
+			`Unknown node type "${name}". Available types: ${available.length ? available.join(", ") : "(none)"}`,
+		);
+	}
+	return type;
+}
+
+// Create nodes in one batch. Node type names are resolved up front (the whole
+// call fails on an unknown name, before any insert); nodes without
+// coordinates are placed by the caller-provided placement plan.
+export async function createNodesInGraph(
+	userId: string,
+	input: {
+		graphId: string;
+		nodes: {
+			label: string;
+			nodeType?: string;
+			x?: number;
+			y?: number;
+		}[];
+		placePending: (
+			existing: { x: number; y: number }[],
+			count: number,
+		) => { x: number; y: number }[];
+	},
+) {
+	const graph = await assertGraphAccess(input.graphId, userId);
+	if (input.nodes.length === 0) return [];
+
+	// Fail before inserting anything if a type name doesn't resolve.
+	const typeNames = [
+		...new Set(input.nodes.flatMap((n) => (n.nodeType ? [n.nodeType] : []))),
+	];
+	for (const name of typeNames) {
+		await resolveNodeTypeByName(graph, name);
+	}
+
+	const existing = await db
+		.select({ x: nodes.x, y: nodes.y })
+		.from(nodes)
+		.where(eq(nodes.graphId, input.graphId));
+	const pendingCount = input.nodes.filter(
+		(n) => n.x === undefined || n.y === undefined,
+	).length;
+	const placements = input.placePending(existing, pendingCount);
+
+	let placed = 0;
+	const values = input.nodes.map((n) => {
+		const auto =
+			n.x === undefined || n.y === undefined ? placements[placed++] : null;
+		return {
+			id: crypto.randomUUID(),
+			graphId: input.graphId,
+			label: n.label,
+			x: n.x ?? auto?.x ?? 0,
+			y: n.y ?? auto?.y ?? 0,
+			nodeType: n.nodeType ?? null,
+		};
+	});
+	await db.insert(nodes).values(values);
+
+	for (const v of values) {
+		if (v.nodeType) await seedNodeTypeTemplate(v.id, graph, v.nodeType);
+	}
+	return db
+		.select()
+		.from(nodes)
+		.where(
+			inArray(
+				nodes.id,
+				values.map((v) => v.id),
+			),
+		);
+}
+
+// Update any combination of a node's label, position and type. Changing the
+// type goes through the same template seeding as the UI.
+export async function updateNodeFields(
+	userId: string,
+	input: {
+		nodeId: string;
+		label?: string;
+		x?: number;
+		y?: number;
+		nodeType?: string | null;
+	},
+) {
+	const { graph } = await requireNodeWithAccess(input.nodeId, userId);
+
+	const set: Partial<typeof nodes.$inferInsert> = {};
+	if (input.label !== undefined) set.label = input.label;
+	if (input.x !== undefined) set.x = input.x;
+	if (input.y !== undefined) set.y = input.y;
+	let addedKeys: string[] = [];
+	if (input.nodeType !== undefined) {
+		if (input.nodeType !== null) {
+			await resolveNodeTypeByName(graph, input.nodeType);
+		}
+		set.nodeType = input.nodeType;
+	}
+	if (Object.keys(set).length > 0) {
+		await db.update(nodes).set(set).where(eq(nodes.id, input.nodeId));
+	}
+	if (input.nodeType) {
+		addedKeys = await seedNodeTypeTemplate(input.nodeId, graph, input.nodeType);
+	}
+	const [node] = await db
+		.select()
+		.from(nodes)
+		.where(eq(nodes.id, input.nodeId));
+	return { node, addedKeys };
+}
+
+// Upsert and delete metadata entries for a node in one call. All values are
+// validated before anything is written.
+export async function setNodeMetadataEntries(
+	userId: string,
+	input: {
+		nodeId: string;
+		set?: { key: string; value: string; valueType?: MetadataValueType }[];
+		deleteKeys?: string[];
+	},
+) {
+	await requireNodeWithAccess(input.nodeId, userId);
+
+	const entries = (input.set ?? []).map((e) => {
+		const valueType = normalizeMetadataValueType(e.valueType);
+		const result = validateMetadataValue(valueType, e.value);
+		if (!result.ok) {
+			throw new Error(`Invalid value for key "${e.key}": ${result.error}`);
+		}
+		return { key: e.key, value: e.value, valueType };
+	});
+
+	for (const e of entries) {
+		await db
+			.insert(nodeMetadata)
+			.values({
+				id: crypto.randomUUID(),
+				nodeId: input.nodeId,
+				key: e.key,
+				value: e.value,
+				valueType: e.valueType,
+			})
+			.onConflictDoUpdate({
+				target: [nodeMetadata.nodeId, nodeMetadata.key],
+				set: { value: e.value, valueType: e.valueType },
+			});
+	}
+	if (input.deleteKeys?.length) {
+		await db
+			.delete(nodeMetadata)
+			.where(
+				and(
+					eq(nodeMetadata.nodeId, input.nodeId),
+					inArray(nodeMetadata.key, input.deleteKeys),
+				),
+			);
+	}
+	return db
+		.select()
+		.from(nodeMetadata)
+		.where(eq(nodeMetadata.nodeId, input.nodeId));
+}
