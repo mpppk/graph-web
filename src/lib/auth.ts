@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { organization } from "better-auth/plugins";
+import { mcp, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { drizzle } from "drizzle-orm/d1";
 import * as authSchema from "#/db/auth-schema";
@@ -26,6 +26,16 @@ export const auth = betterAuth({
 			},
 			sendInvitationEmail: async (_data) => {
 				// invite-link-only pattern; no email sending
+			},
+		}),
+		// OAuth 2.1 provider for MCP clients (Claude Code / Desktop etc.).
+		mcp({
+			loginPage: "/login",
+			oidcConfig: {
+				loginPage: "/login",
+				consentPage: "/oauth/consent",
+				// MCP clients register themselves via RFC 7591 dynamic registration.
+				allowDynamicClientRegistration: true,
 			},
 		}),
 	],

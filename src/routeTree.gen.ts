@@ -14,6 +14,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphsIndexRouteImport } from './routes/graphs/index'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as GraphsGraphIdIndexRouteImport } from './routes/graphs/$graphId/index'
 import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
@@ -51,6 +55,28 @@ const GraphsIndexRoute = GraphsIndexRouteImport.update({
   path: '/graphs/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
   id: '/org/$orgId/',
   path: '/org/$orgId/',
@@ -117,6 +143,10 @@ export interface FileRoutesByFullPath {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -135,6 +165,10 @@ export interface FileRoutesByTo {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -154,6 +188,10 @@ export interface FileRoutesById {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
@@ -174,6 +212,10 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
+    | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -192,6 +234,10 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
+    | '/oauth/consent'
     | '/graphs'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -210,6 +256,10 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/login'
     | '/orgs'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/api/mcp'
+    | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
     | '/graphs/$graphId/settings'
@@ -229,6 +279,10 @@ export interface RootRouteChildren {
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   LoginRoute: typeof LoginRoute
   OrgsRoute: typeof OrgsRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  ApiMcpRoute: typeof ApiMcpRoute
+  OauthConsentRoute: typeof OauthConsentRoute
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   GraphsGraphIdSettingsRoute: typeof GraphsGraphIdSettingsRoute
@@ -278,6 +332,34 @@ declare module '@tanstack/react-router' {
       path: '/graphs'
       fullPath: '/graphs/'
       preLoaderRoute: typeof GraphsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/org/$orgId/': {
@@ -365,6 +447,12 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInvitationRoute: AcceptInvitationRoute,
   LoginRoute: LoginRoute,
   OrgsRoute: OrgsRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRoute,
+  ApiMcpRoute: ApiMcpRoute,
+  OauthConsentRoute: OauthConsentRoute,
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   GraphsGraphIdSettingsRoute: GraphsGraphIdSettingsRoute,
