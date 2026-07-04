@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import * as authSchema from "#/db/auth-schema";
 import { db } from "#/db/index";
@@ -14,13 +13,17 @@ import {
 	nodeTypes,
 	templateNodeTypes,
 } from "#/db/schema";
-import { auth } from "#/lib/auth";
 import { requireUserId } from "#/lib/graph-auth-internal";
 import {
 	type MetadataValueType,
 	normalizeMetadataValueType,
 	validateMetadataValue,
 } from "#/lib/metadata-types";
+import {
+	assertGraphAccess,
+	assertOrgMember,
+	assertTeamAccess,
+} from "#/lib/services/access";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -31,52 +34,6 @@ const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
 	{ name: "Opportunity", color: "#f97316" },
 	{ name: "Solution", color: "#14b8a6" },
 ];
-
-// Verify the user is a member of the organization.
-async function assertOrgAccess(orgId: string, userId: string) {
-	const org = await auth.api.getFullOrganization({
-		headers: getRequest().headers,
-		query: { organizationId: orgId },
-	});
-	if (!org?.members?.some((m) => m.userId === userId))
-		throw new Error("Forbidden");
-	return org;
-}
-
-async function assertTeamAccess(teamId: string, userId: string) {
-	const [team] = await db
-		.select()
-		.from(authSchema.team)
-		.where(eq(authSchema.team.id, teamId));
-	if (!team) throw new Error("Team not found");
-	await assertOrgAccess(team.organizationId, userId);
-	return team;
-}
-
-// Verify the user can access the graph.
-// Team-owned graphs: user must be an org member.
-// Legacy user-owned graphs: user must be the owner.
-async function assertGraphAccess(graphId: string, userId: string) {
-	const [graph] = await db.select().from(graphs).where(eq(graphs.id, graphId));
-	if (!graph) throw new Error("Graph not found");
-
-	if (graph.teamId) {
-		const [graphTeam] = await db
-			.select()
-			.from(authSchema.team)
-			.where(eq(authSchema.team.id, graph.teamId));
-		if (!graphTeam) throw new Error("Graph not found");
-		const org = await auth.api.getFullOrganization({
-			headers: getRequest().headers,
-			query: { organizationId: graphTeam.organizationId },
-		});
-		const isMember = org?.members?.some((m) => m.userId === userId);
-		if (!isMember) throw new Error("Forbidden");
-	} else {
-		if (graph.userId !== userId) throw new Error("Forbidden");
-	}
-	return graph;
-}
 
 // Idempotently seed the default user-scope node types for a user.
 async function ensureDefaultNodeTypes(userId: string) {
@@ -114,14 +71,9 @@ async function requireOwnedNodeType(typeId: string, userId: string) {
 			.from(authSchema.team)
 			.where(eq(authSchema.team.id, type.scopeId));
 		if (!scopeTeam) throw new Error("Node type not found");
-		const org = await auth.api.getFullOrganization({
-			headers: getRequest().headers,
-			query: { organizationId: scopeTeam.organizationId },
-		});
-		if (!org?.members?.some((m) => m.userId === userId))
-			throw new Error("Forbidden");
+		await assertOrgMember(scopeTeam.organizationId, userId);
 	} else if (type.scope === "org") {
-		await assertOrgAccess(type.scopeId, userId);
+		await assertOrgMember(type.scopeId, userId);
 	} else {
 		throw new Error("Unsupported node type scope");
 	}
@@ -795,7 +747,7 @@ export const listNodeTypesForOrg = createServerFn({ method: "GET" })
 	.inputValidator((data: { orgId: string }) => data)
 	.handler(async ({ data }): Promise<NodeTypeWithFields[]> => {
 		const userId = await requireUserId();
-		await assertOrgAccess(data.orgId, userId);
+		await assertOrgMember(data.orgId, userId);
 
 		const types = await db
 			.select()
@@ -832,7 +784,7 @@ export const createNodeTypeForOrg = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await assertOrgAccess(data.orgId, userId);
+		await assertOrgMember(data.orgId, userId);
 
 		const name = data.name.trim();
 		if (!name) throw new Error("Name is required");
@@ -1146,7 +1098,7 @@ async function requireOwnedTemplate(templateId: string, userId: string) {
 		.where(eq(graphTemplates.id, templateId));
 	if (!tpl) throw new Error("Template not found");
 	if (tpl.ownerType === "team") await assertTeamAccess(tpl.ownerId, userId);
-	else await assertOrgAccess(tpl.ownerId, userId);
+	else await assertOrgMember(tpl.ownerId, userId);
 	return tpl;
 }
 
@@ -1236,7 +1188,7 @@ export const listTemplatesForOrg = createServerFn({ method: "GET" })
 	.inputValidator((data: { orgId: string }) => data)
 	.handler(async ({ data }): Promise<TemplateWithNodeTypes[]> => {
 		const userId = await requireUserId();
-		await assertOrgAccess(data.orgId, userId);
+		await assertOrgMember(data.orgId, userId);
 		return listTemplatesByOwner("org", data.orgId);
 	});
 
@@ -1266,7 +1218,7 @@ export const createTemplate = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		if (data.ownerType === "team") await assertTeamAccess(data.ownerId, userId);
-		else await assertOrgAccess(data.ownerId, userId);
+		else await assertOrgMember(data.ownerId, userId);
 
 		const name = data.name.trim();
 		if (!name) throw new Error("Name is required");
