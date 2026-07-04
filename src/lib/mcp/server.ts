@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerReadTools } from "./tools";
+import { registerReadTools, registerWriteTools } from "./tools";
 
 // Build a per-request MCP server bound to the authenticated user. The SDK
 // forbids reusing a connected server across requests, and per-request
@@ -7,5 +7,6 @@ import { registerReadTools } from "./tools";
 export function buildMcpServer(userId: string): McpServer {
 	const server = new McpServer({ name: "graph-web", version: "1.0.0" });
 	registerReadTools(server, userId);
+	registerWriteTools(server, userId);
 	return server;
 }

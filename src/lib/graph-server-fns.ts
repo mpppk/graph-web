@@ -27,29 +27,7 @@ import * as graphService from "#/lib/services/graph-service";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
-	{ name: "KPI", color: "#3b82f6" },
-	{ name: "Epic", color: "#8b5cf6" },
-	{ name: "Feature", color: "#22c55e" },
-	{ name: "Opportunity", color: "#f97316" },
-	{ name: "Solution", color: "#14b8a6" },
-];
-
-// Idempotently seed the default user-scope node types for a user.
-async function ensureDefaultNodeTypes(userId: string) {
-	await db
-		.insert(nodeTypes)
-		.values(
-			DEFAULT_NODE_TYPES.map((t) => ({
-				id: crypto.randomUUID(),
-				scope: "user" as const,
-				scopeId: userId,
-				name: t.name,
-				color: t.color,
-			})),
-		)
-		.onConflictDoNothing();
-}
+const { ensureDefaultNodeTypes } = graphService;
 
 // Resolve a node type the user is allowed to modify.
 // Precedence: user-scope (own), graph-scope (own graph), team-scope (org member), org-scope (org member).

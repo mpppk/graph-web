@@ -1,7 +1,19 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as graphService from "#/lib/services/graph-service";
-import { getGraphInput, getNodeInput } from "./schemas";
+import { planNodePlacement } from "./placement";
+import {
+	createEdgesInput,
+	createNodesInput,
+	deleteEdgesInput,
+	deleteNodesInput,
+	getGraphInput,
+	getNodeInput,
+	setNodeMetadataInput,
+	updateEdgeInput,
+	updateGraphInput,
+	updateNodeInput,
+} from "./schemas";
 
 // Serialize a result as both structured content and a text mirror; MCP
 // clients without structured-content support read the text form.
@@ -77,6 +89,213 @@ export function registerReadTools(server: McpServer, userId: string) {
 					node_id,
 				);
 				return ok({ node, metadata });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+}
+
+export function registerWriteTools(server: McpServer, userId: string) {
+	server.registerTool(
+		"update_graph",
+		{
+			title: "Update graph",
+			description: "Update a graph's name and/or description.",
+			inputSchema: updateGraphInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ graph_id, name, description }) => {
+			try {
+				if (name === undefined && description === undefined) {
+					throw new Error("Provide name and/or description");
+				}
+				const graph = await graphService.updateGraph(userId, {
+					graphId: graph_id,
+					name,
+					description,
+				});
+				return ok({ graph });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"create_nodes",
+		{
+			title: "Create nodes",
+			description:
+				"Create one or more nodes in a graph. Nodes without x/y are placed " +
+				"automatically below the existing nodes.",
+			inputSchema: createNodesInput,
+			annotations: { destructiveHint: false },
+		},
+		async ({ graph_id, nodes }) => {
+			try {
+				const created = await graphService.createNodesInGraph(userId, {
+					graphId: graph_id,
+					nodes: nodes.map((n) => ({
+						label: n.label,
+						nodeType: n.node_type,
+						x: n.x,
+						y: n.y,
+					})),
+					placePending: planNodePlacement,
+				});
+				return ok({ nodes: created });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"update_node",
+		{
+			title: "Update node",
+			description:
+				"Update a node's label, position and/or type. Assigning a type also " +
+				"seeds the type's metadata template keys onto the node.",
+			inputSchema: updateNodeInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ node_id, label, node_type, x, y }) => {
+			try {
+				if (
+					label === undefined &&
+					node_type === undefined &&
+					x === undefined &&
+					y === undefined
+				) {
+					throw new Error("Provide at least one field to update");
+				}
+				const result = await graphService.updateNodeFields(userId, {
+					nodeId: node_id,
+					label,
+					nodeType: node_type,
+					x,
+					y,
+				});
+				return ok(result);
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"delete_nodes",
+		{
+			title: "Delete nodes",
+			description:
+				"Delete nodes by ID. Connected edges and metadata are deleted too. " +
+				"IDs that no longer exist are ignored.",
+			inputSchema: deleteNodesInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ node_ids }) => {
+			try {
+				return ok(
+					await graphService.deleteNodesById(userId, { nodeIds: node_ids }),
+				);
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"create_edges",
+		{
+			title: "Create edges",
+			description: "Create one or more edges between nodes of the same graph.",
+			inputSchema: createEdgesInput,
+			annotations: { destructiveHint: false },
+		},
+		async ({ graph_id, edges }) => {
+			try {
+				const created = await graphService.createEdgesInGraph(userId, {
+					graphId: graph_id,
+					edges: edges.map((e) => ({
+						sourceNodeId: e.source_node_id,
+						targetNodeId: e.target_node_id,
+						label: e.label,
+					})),
+				});
+				return ok({ edges: created });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"update_edge",
+		{
+			title: "Update edge",
+			description: "Update an edge's label.",
+			inputSchema: updateEdgeInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ edge_id, label }) => {
+			try {
+				const edge = await graphService.updateEdgeLabel(userId, {
+					edgeId: edge_id,
+					label,
+				});
+				return ok({ edge });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"delete_edges",
+		{
+			title: "Delete edges",
+			description: "Delete edges by ID. IDs that no longer exist are ignored.",
+			inputSchema: deleteEdgesInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ edge_ids }) => {
+			try {
+				return ok(
+					await graphService.deleteEdgesById(userId, { edgeIds: edge_ids }),
+				);
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
+	server.registerTool(
+		"set_node_metadata",
+		{
+			title: "Set node metadata",
+			description:
+				"Create, overwrite and/or delete metadata entries on a node. " +
+				"Returns the node's full metadata after the change.",
+			inputSchema: setNodeMetadataInput,
+			annotations: { destructiveHint: true, idempotentHint: true },
+		},
+		async ({ node_id, set, delete_keys }) => {
+			try {
+				if (!set?.length && !delete_keys?.length) {
+					throw new Error("Provide set and/or delete_keys");
+				}
+				const metadata = await graphService.setNodeMetadataEntries(userId, {
+					nodeId: node_id,
+					set: set?.map((e) => ({
+						key: e.key,
+						value: e.value,
+						valueType: e.value_type,
+					})),
+					deleteKeys: delete_keys,
+				});
+				return ok({ metadata });
 			} catch (e) {
 				return err(e);
 			}

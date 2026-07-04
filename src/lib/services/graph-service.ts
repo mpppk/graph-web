@@ -29,6 +29,30 @@ import { pickByScopePrecedence } from "#/lib/services/node-type-resolution";
 
 // ── Node type template seeding ────────────────────────────────────────────────
 
+const DEFAULT_NODE_TYPES: { name: string; color: string }[] = [
+	{ name: "KPI", color: "#3b82f6" },
+	{ name: "Epic", color: "#8b5cf6" },
+	{ name: "Feature", color: "#22c55e" },
+	{ name: "Opportunity", color: "#f97316" },
+	{ name: "Solution", color: "#14b8a6" },
+];
+
+// Idempotently seed the default user-scope node types for a user.
+export async function ensureDefaultNodeTypes(userId: string) {
+	await db
+		.insert(nodeTypes)
+		.values(
+			DEFAULT_NODE_TYPES.map((t) => ({
+				id: crypto.randomUUID(),
+				scope: "user" as const,
+				scopeId: userId,
+				name: t.name,
+				color: t.color,
+			})),
+		)
+		.onConflictDoNothing();
+}
+
 // Add a node type's template metadata keys to a node (empty values, never
 // overwriting existing entries). Resolves the applicable type definition using
 // graph > team > org > user precedence. Returns the keys that were seeded.
@@ -509,11 +533,14 @@ async function listApplicableNodeTypeNames(
 }
 
 // Resolve a node type by name within the graph's scopes. Unknown names are an
-// error listing the valid options so LLM clients can self-correct.
+// error listing the valid options so LLM clients can self-correct. Defaults
+// are seeded first so MCP-only users see the same types as the UI (which
+// seeds them in listNodeTypesForGraph).
 export async function resolveNodeTypeByName(
 	graph: typeof graphs.$inferSelect,
 	name: string,
 ) {
+	await ensureDefaultNodeTypes(graph.userId);
 	const matches = await findNodeTypesByName(graph, name);
 	const type = pickByScopePrecedence(matches);
 	if (!type) {
