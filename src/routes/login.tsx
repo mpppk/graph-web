@@ -92,23 +92,23 @@ function LoginPage() {
 		setLoading(true);
 
 		try {
-			if (isSignUp) {
-				const result = await authClient.signUp.email({
-					email,
-					password,
-					name,
-				});
-				if (result.error) {
-					setError(result.error.message || "Sign up failed");
-				}
-			} else {
-				const result = await authClient.signIn.email({
-					email,
-					password,
-				});
-				if (result.error) {
-					setError(result.error.message || "Sign in failed");
-				}
+			const result = isSignUp
+				? await authClient.signUp.email({ email, password, name })
+				: await authClient.signIn.email({ email, password });
+
+			// When this page was reached from an OAuth authorize request (MCP
+			// clients), better-auth's mcp plugin turns the sign-in response into
+			// the authorize redirect. Follow it to hand the code to the client.
+			const data = result.data as Record<string, unknown> | null;
+			if (data && data.redirect === true && typeof data.url === "string") {
+				window.location.assign(data.url);
+				return;
+			}
+			if (result.error) {
+				setError(
+					result.error.message ||
+						(isSignUp ? "Sign up failed" : "Sign in failed"),
+				);
 			}
 		} catch (_err) {
 			setError("An unexpected error occurred");
