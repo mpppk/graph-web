@@ -97,6 +97,46 @@ npx -y @better-auth/cli migrate
 ```
 
 
+## Claude から接続する (MCP)
+
+このアプリは `/api/mcp` に [Model Context Protocol](https://modelcontextprotocol.io/) サーバーを公開しており、Claude Code や Claude Desktop からグラフの閲覧・編集ができます。
+
+- **エンドポイント** (Streamable HTTP): `https://graph-web.niboshi.workers.dev/api/mcp`
+- **認証**: OAuth 2.1。MCP クライアントが自動でクライアント登録 (Dynamic Client Registration) を行い、ブラウザが開いてサインインします。API キーの管理は不要です。アクセスできるのは Web アプリと同じく、自分のグラフ (と所属チームのグラフ) だけです。
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add --transport http graph-web https://graph-web.niboshi.workers.dev/api/mcp
+```
+
+追加後、Claude Code で `/mcp` を実行し **Authenticate** を選ぶとブラウザでのサインインが完了します。
+
+### Claude Desktop
+
+設定 → **コネクタ** → **カスタムコネクタを追加** で以下を入力します。
+
+- 名前: `graph-web`
+- URL: `https://graph-web.niboshi.workers.dev/api/mcp`
+
+**接続** をクリックし、ブラウザが開いたらサインインします。
+
+### 利用できるツール
+
+| 読み取り | 書き込み |
+| --- | --- |
+| `list_graphs`, `get_graph`, `get_node` | `update_graph`, `create_nodes`, `update_node`, `delete_nodes`, `create_edges`, `update_edge`, `delete_edges`, `set_node_metadata` |
+
+### ローカル開発サーバーに接続する
+
+クライアントを `http://localhost:3000/api/mcp` に向けます。OAuth フローをローカルで動かすには、`.dev.vars` で issuer を開発環境のオリジンに設定します。
+
+```bash
+# .dev.vars
+BETTER_AUTH_URL=http://localhost:3000
+```
+
+
 ## Shadcn
 
 Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
