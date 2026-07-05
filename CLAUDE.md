@@ -5,8 +5,8 @@
 # 開発コマンド
 
 * マージ前チェック（CIと同一）: `bun run typecheck` / `bun run check` / `bun run build` / `bun run test`
-* ローカルDB: 初回起動時・スキーマ変更後は `bun run db:migrate:local` を実行してから `bun run dev`
-* ローカルでOAuth/MCP関連を検証する場合は `.dev.vars` に `BETTER_AUTH_URL=http://localhost:3000` を設定する（未設定だとissuerが本番URLになる）
+* ローカルDB: 初回・スキーマ変更後は `bun run db:migrate:local` してから `bun run dev`
+* OAuth/MCPをローカル検証する場合は `.dev.vars` に `BETTER_AUTH_URL=http://localhost:3000` を設定
 
 # 開発時の注意点
 
@@ -16,24 +16,24 @@
 
 ## UI変更時の動作確認
 
-UI（レイアウト・スタイル・操作性）に関わる変更は、必ず以下の3条件で確認してください。過去、デスクトップ・ライトモードのみの確認でマージし、後日モバイル崩れやダークモード未対応の修正PRが必要になったケースが複数回発生しています。
+必ず3条件で確認する:
 
-* デスクトップ幅（例: 1280x800）
-* モバイル幅（例: 393x852）。スクロールが意図せず発生していないか（`scrollHeight === clientHeight`）も確認する
+* デスクトップ幅（1280x800）
+* モバイル幅（393x852）。意図しないスクロールがないか（`scrollHeight === clientHeight`）も確認
 * ダークモード
 
-## React Flow (@xyflow/react) を触る場合
+## React Flow (@xyflow/react)
 
-グラフキャンバス周りの実装・修正に入る前に `docs/react-flow-notes.md` を読んでください。ダークモード対応・カスタムノードへの状態受け渡し・グループノードのサイズ計算など、過去に複数PRで踏んだ既知の落とし穴をまとめています。新しく踏んだ落とし穴があれば、このファイルに追記してください。
+グラフキャンバスを触る前に `docs/react-flow-notes.md` を読むこと。新しく踏んだ落とし穴は同ファイルに追記する。
 
 ## DBスキーマ変更を含むPR
 
-* マイグレーションは `drizzle/` に連番のSQLファイルとして追加する。better-auth関連のテーブルは、better-authが要求するスキーマ定義と突合すること。
-* 本番/preview環境へのデプロイ前に `bun run db:migrate:remote`（preview環境は `bun run db:migrate:preview`）の適用が必要な場合、その旨をPRのdescriptionに明記してください。
+* マイグレーションは `drizzle/` に連番SQLで追加。better-auth関連はbetter-authのスキーマ定義と突合する。
+* デプロイ前に `bun run db:migrate:remote` / `db:migrate:preview` の適用が必要な場合、PRのdescriptionに明記する。
 
 ## PRの作成
 
 * PRには実装プランの内容をdetailsタグで記載してください。
 * PRにはTest Planを記載してください。Test Planには、手動での動作確認の手順を記載してください。その後、実際にブラウザで動作確認を行なってください。
-* ブラウザでの動作確認中はスクリーンショットを適宜撮影し、Gyazo CLI経由でアップロードしてください。スクリーンショット画像そのものはリポジトリにコミットしないでください。
+* ブラウザでの動作確認中はスクリーンショットを適宜撮影し、Gyazo CLI経由でアップロードしてください。画像はリポジトリにコミットしないでください。
 * 動作確認の完了後は、結果をPRのdescriptionに追記してください。結果には撮影したスクリーンショットのGyazo画像を記載してください。
