@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "bun run build && vite preview",
     "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check",

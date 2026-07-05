@@ -22,7 +22,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type check
-        run: bunx tsc --noEmit
+        run: bun run typecheck
 
       - name: Lint & Format check
         run: bun run check
