@@ -97,12 +97,12 @@ npx -y @better-auth/cli migrate
 ```
 
 
-## Connecting from Claude (MCP)
+## Claude から接続する (MCP)
 
-This app exposes a [Model Context Protocol](https://modelcontextprotocol.io/) server at `/api/mcp`, so you can browse and edit graphs from Claude Code or Claude Desktop.
+このアプリは `/api/mcp` に [Model Context Protocol](https://modelcontextprotocol.io/) サーバーを公開しており、Claude Code や Claude Desktop からグラフの閲覧・編集ができます。
 
-- **Endpoint** (Streamable HTTP): `https://graph-web.niboshi.workers.dev/api/mcp`
-- **Auth**: OAuth 2.1. The MCP client registers itself automatically (Dynamic Client Registration) and opens a browser for you to sign in — no API key to manage. You only get access to your own graphs (and graphs of teams you belong to), exactly as in the web app.
+- **エンドポイント** (Streamable HTTP): `https://graph-web.niboshi.workers.dev/api/mcp`
+- **認証**: OAuth 2.1。MCP クライアントが自動でクライアント登録 (Dynamic Client Registration) を行い、ブラウザが開いてサインインします。API キーの管理は不要です。アクセスできるのは Web アプリと同じく、自分のグラフ (と所属チームのグラフ) だけです。
 
 ### Claude Code (CLI)
 
@@ -110,26 +110,26 @@ This app exposes a [Model Context Protocol](https://modelcontextprotocol.io/) se
 claude mcp add --transport http graph-web https://graph-web.niboshi.workers.dev/api/mcp
 ```
 
-Then run `/mcp` in Claude Code and choose **Authenticate** to complete the browser sign-in.
+追加後、Claude Code で `/mcp` を実行し **Authenticate** を選ぶとブラウザでのサインインが完了します。
 
 ### Claude Desktop
 
-Settings → **Connectors** → **Add custom connector**, then enter:
+設定 → **コネクタ** → **カスタムコネクタを追加** で以下を入力します。
 
-- Name: `graph-web`
+- 名前: `graph-web`
 - URL: `https://graph-web.niboshi.workers.dev/api/mcp`
 
-Click **Connect** and sign in when the browser opens.
+**接続** をクリックし、ブラウザが開いたらサインインします。
 
-### Available tools
+### 利用できるツール
 
-| Read | Write |
+| 読み取り | 書き込み |
 | --- | --- |
 | `list_graphs`, `get_graph`, `get_node` | `update_graph`, `create_nodes`, `update_node`, `delete_nodes`, `create_edges`, `update_edge`, `delete_edges`, `set_node_metadata` |
 
-### Connecting to a local dev server
+### ローカル開発サーバーに接続する
 
-Point the client at `http://localhost:3000/api/mcp`. For the OAuth flow to work locally, set the issuer to your dev origin in `.dev.vars`:
+クライアントを `http://localhost:3000/api/mcp` に向けます。OAuth フローをローカルで動かすには、`.dev.vars` で issuer を開発環境のオリジンに設定します。
 
 ```bash
 # .dev.vars
