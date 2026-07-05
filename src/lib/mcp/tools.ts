@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as graphService from "#/lib/services/graph-service";
+import * as userService from "#/lib/services/user-service";
 import { planNodePlacement } from "./placement";
 import {
 	createEdgesInput,
@@ -33,6 +34,25 @@ function err(e: unknown): CallToolResult {
 }
 
 export function registerReadTools(server: McpServer, userId: string) {
+	server.registerTool(
+		"get_current_user",
+		{
+			title: "Get current user",
+			description:
+				"Get the account info (id, name, email, avatar) of the signed-in " +
+				"user this MCP connection is authenticated as.",
+			annotations: { readOnlyHint: true },
+		},
+		async () => {
+			try {
+				const user = await userService.getCurrentUser(userId);
+				return ok({ user });
+			} catch (e) {
+				return err(e);
+			}
+		},
+	);
+
 	server.registerTool(
 		"list_graphs",
 		{
