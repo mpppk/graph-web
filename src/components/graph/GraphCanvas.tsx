@@ -116,6 +116,7 @@ function GraphCanvasInner({
 	initialCreationTypeSettings = [],
 	orgId,
 	teamId,
+	initialMode = "edit",
 }: {
 	graph: Graph;
 	initialNodes: RFNode[];
@@ -124,6 +125,7 @@ function GraphCanvasInner({
 	initialCreationTypeSettings?: CreationTypeSetting[];
 	orgId?: string;
 	teamId?: string;
+	initialMode?: GraphMode;
 }) {
 	const navigate = useNavigate();
 	const { setOpenPalette } = useCommandPalette();
@@ -133,7 +135,7 @@ function GraphCanvasInner({
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-	const [mode, setMode] = useState<GraphMode>("edit");
+	const [mode, setMode] = useState<GraphMode>(initialMode);
 	const readOnly = mode === "read";
 
 	// Ephemeral: which node types are rendered as React Flow subgraphs. Reset on
@@ -878,6 +880,7 @@ export default function GraphCanvas(props: {
 	initialCreationTypeSettings?: CreationTypeSetting[];
 	orgId?: string;
 	teamId?: string;
+	initialMode?: GraphMode;
 }) {
 	return <GraphCanvasInner {...props} />;
 }

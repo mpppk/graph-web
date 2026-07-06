@@ -1,7 +1,9 @@
+import { env } from "cloudflare:workers";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as graphService from "#/lib/services/graph-service";
 import * as userService from "#/lib/services/user-service";
+import { buildGraphDetailUiResource } from "./apps";
 import { planNodePlacement } from "./placement";
 import {
 	createEdgesInput,
@@ -87,7 +89,16 @@ export function registerReadTools(server: McpServer, userId: string) {
 				const detail = await graphService.getGraphDetail(userId, graph_id, {
 					includeMetadata: include_metadata,
 				});
-				return ok(detail);
+				// Attach a read-only MCP App (mcp-ui) that renders the graph in the
+				// host via an iframe pointed at the app's own /embed route.
+				const ui = buildGraphDetailUiResource(
+					env.BETTER_AUTH_URL,
+					detail.graph.id,
+				);
+				return {
+					content: [{ type: "text", text: JSON.stringify(detail) }, ui],
+					structuredContent: detail as Record<string, unknown>,
+				};
 			} catch (e) {
 				return err(e);
 			}

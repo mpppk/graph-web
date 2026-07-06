@@ -23,6 +23,7 @@ import { Route as GraphsGraphIdIndexRouteImport } from './routes/graphs/$graphId
 import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
 import { Route as GraphsGraphIdTableRouteImport } from './routes/graphs/$graphId/table'
 import { Route as GraphsGraphIdSettingsRouteImport } from './routes/graphs/$graphId/settings'
+import { Route as EmbedGraphsGraphIdRouteImport } from './routes/embed/graphs/$graphId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdSettingsRouteImport } from './routes/org/$orgId/team/$teamId/settings'
 import { Route as OrgOrgIdTeamTeamIdGraphsIndexRouteImport } from './routes/org/$orgId/team/$teamId/graphs/index'
@@ -102,6 +103,11 @@ const GraphsGraphIdSettingsRoute = GraphsGraphIdSettingsRouteImport.update({
   path: '/graphs/$graphId/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedGraphsGraphIdRoute = EmbedGraphsGraphIdRouteImport.update({
+  id: '/embed/graphs/$graphId',
+  path: '/embed/graphs/$graphId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/graphs/$graphId': typeof EmbedGraphsGraphIdRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
   '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/graphs/$graphId': typeof EmbedGraphsGraphIdRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
   '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/oauth/consent': typeof OauthConsentRoute
   '/graphs/': typeof GraphsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/graphs/$graphId': typeof EmbedGraphsGraphIdRoute
   '/graphs/$graphId/settings': typeof GraphsGraphIdSettingsRoute
   '/graphs/$graphId/table': typeof GraphsGraphIdTableRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
+    | '/embed/graphs/$graphId'
     | '/graphs/$graphId/settings'
     | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/graphs'
     | '/api/auth/$'
+    | '/embed/graphs/$graphId'
     | '/graphs/$graphId/settings'
     | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/graphs/'
     | '/api/auth/$'
+    | '/embed/graphs/$graphId'
     | '/graphs/$graphId/settings'
     | '/graphs/$graphId/table'
     | '/org/$orgId/settings'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   OauthConsentRoute: typeof OauthConsentRoute
   GraphsIndexRoute: typeof GraphsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  EmbedGraphsGraphIdRoute: typeof EmbedGraphsGraphIdRoute
   GraphsGraphIdSettingsRoute: typeof GraphsGraphIdSettingsRoute
   GraphsGraphIdTableRoute: typeof GraphsGraphIdTableRoute
   OrgOrgIdSettingsRoute: typeof OrgOrgIdSettingsRoute
@@ -397,6 +410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GraphsGraphIdSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/graphs/$graphId': {
+      id: '/embed/graphs/$graphId'
+      path: '/embed/graphs/$graphId'
+      fullPath: '/embed/graphs/$graphId'
+      preLoaderRoute: typeof EmbedGraphsGraphIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -455,6 +475,7 @@ const rootRouteChildren: RootRouteChildren = {
   OauthConsentRoute: OauthConsentRoute,
   GraphsIndexRoute: GraphsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  EmbedGraphsGraphIdRoute: EmbedGraphsGraphIdRoute,
   GraphsGraphIdSettingsRoute: GraphsGraphIdSettingsRoute,
   GraphsGraphIdTableRoute: GraphsGraphIdTableRoute,
   OrgOrgIdSettingsRoute: OrgOrgIdSettingsRoute,
