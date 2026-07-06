@@ -79,9 +79,13 @@ export default function Header() {
 				<h2 className="m-0 flex-shrink-0 text-base font-semibold tracking-tight">
 					<Link
 						to="/orgs"
-						className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm text-foreground no-underline shadow-xs sm:px-4 sm:py-2"
+						className="inline-flex items-center justify-center rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 					>
-						G
+						<img
+							src="/favicon.svg"
+							alt="Graph Web"
+							className="size-8 rounded-lg sm:size-9"
+						/>
 					</Link>
 				</h2>
 
