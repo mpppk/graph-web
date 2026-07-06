@@ -23,11 +23,53 @@ export const Route = createRootRoute({
 			{
 				title: "Graph Web",
 			},
+			{
+				name: "description",
+				content: "グラフを作成・編集できるWebアプリ",
+			},
+			{
+				name: "application-name",
+				content: "Graph Web",
+			},
+			{
+				name: "mobile-web-app-capable",
+				content: "yes",
+			},
+			{
+				name: "apple-mobile-web-app-capable",
+				content: "yes",
+			},
+			{
+				name: "apple-mobile-web-app-status-bar-style",
+				content: "default",
+			},
+			{
+				name: "apple-mobile-web-app-title",
+				content: "Graph Web",
+			},
 		],
 		links: [
 			{
 				rel: "stylesheet",
 				href: appCss,
+			},
+			{
+				rel: "manifest",
+				href: "/manifest.json",
+			},
+			{
+				rel: "icon",
+				href: "/favicon.ico",
+				sizes: "48x48",
+			},
+			{
+				rel: "icon",
+				type: "image/svg+xml",
+				href: "/favicon.svg",
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png",
 			},
 		],
 	}),
@@ -42,6 +84,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
+				{/* theme-color is set as literal tags (not via head() meta) because
+				    TanStack Router dedupes meta by name, dropping one of the two
+				    prefers-color-scheme variants. */}
+				<meta
+					name="theme-color"
+					content="#ffffff"
+					media="(prefers-color-scheme: light)"
+				/>
+				<meta
+					name="theme-color"
+					content="#09090b"
+					media="(prefers-color-scheme: dark)"
+				/>
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: intentional inline theme init script */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
