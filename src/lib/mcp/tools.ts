@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as graphService from "#/lib/services/graph-service";
 import * as userService from "#/lib/services/user-service";
-import { buildGraphDetailUiResource } from "./apps";
+import { buildGraphDetailUiResource, GRAPH_DETAIL_RESOURCE_URI } from "./apps";
 import { planNodePlacement } from "./placement";
 import {
 	createEdgesInput,
@@ -83,6 +83,8 @@ export function registerReadTools(server: McpServer, userId: string) {
 				"node's metadata) in one call.",
 			inputSchema: getGraphInput,
 			annotations: { readOnlyHint: true },
+			// MCP Apps (SEP): associate a UI so hosts render the graph inline.
+			_meta: { ui: { resourceUri: GRAPH_DETAIL_RESOURCE_URI } },
 		},
 		async ({ graph_id, include_metadata }) => {
 			try {
