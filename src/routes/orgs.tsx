@@ -1,8 +1,16 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { BuildingIcon, SquareChevronRightIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CommandPalette } from "#/components/CommandPalette";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Skeleton } from "#/components/ui/skeleton";
@@ -34,8 +42,21 @@ function OrgsPage() {
 		queryFn: () => listOrgs(),
 	});
 
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [createOpen, setCreateOpen] = useState(false);
 	const [name, setName] = useState("");
 	const [slug, setSlug] = useState("");
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+				e.preventDefault();
+				setPaletteOpen((v) => !v);
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, []);
 
 	const { mutate: handleCreate, isPending } = useMutation({
 		mutationFn: () => createOrg({ data: { name, slug } }),
@@ -43,12 +64,31 @@ function OrgsPage() {
 			refetch();
 			setName("");
 			setSlug("");
+			setCreateOpen(false);
 		},
 	});
 
+	const openCreateDialog = () => {
+		setName("");
+		setSlug("");
+		setCreateOpen(true);
+	};
+
 	return (
 		<main className="mx-auto max-w-2xl px-4 py-10">
-			<h1 className="mb-6 text-2xl font-bold">Organizations</h1>
+			<div className="mb-6 flex items-center gap-1">
+				<h1 className="text-2xl font-bold">Organizations</h1>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					aria-label="コマンドパレットを開く (⌘K)"
+					title="コマンドパレットを開く (⌘K)"
+					onClick={() => setPaletteOpen(true)}
+				>
+					<SquareChevronRightIcon />
+				</Button>
+			</div>
 
 			<ul className="mb-8 space-y-2">
 				{orgsPending ? (
@@ -79,12 +119,26 @@ function OrgsPage() {
 				)}
 			</ul>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Create Organization</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="flex flex-col gap-3">
+			<CommandPalette
+				open={paletteOpen}
+				onOpenChange={setPaletteOpen}
+				commands={[
+					{
+						label: "組織を作成",
+						keywords: ["create", "organization", "org", "組織", "作成", "新規"],
+						icon: <BuildingIcon />,
+						onSelect: openCreateDialog,
+					},
+				]}
+			/>
+
+			<Dialog open={createOpen} onOpenChange={setCreateOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>組織を作成</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-3">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="org-name">Name</Label>
 							<Input
@@ -93,6 +147,7 @@ function OrgsPage() {
 								placeholder="My Organization"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
+								autoFocus
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
@@ -103,18 +158,33 @@ function OrgsPage() {
 								placeholder="my-org"
 								value={slug}
 								onChange={(e) => setSlug(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && name.trim() && slug.trim()) {
+										handleCreate();
+									}
+								}}
 							/>
 						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setCreateOpen(false)}
+						>
+							キャンセル
+						</Button>
 						<Button
 							type="button"
 							disabled={!name.trim() || !slug.trim() || isPending}
 							onClick={() => handleCreate()}
 						>
-							Create
+							{isPending ? "作成中…" : "作成"}
 						</Button>
-					</div>
-				</CardContent>
-			</Card>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</main>
 	);
 }
