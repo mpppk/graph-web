@@ -1,8 +1,27 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router";
+import {
+	SettingsIcon,
+	SquareChevronRightIcon,
+	UserPlusIcon,
+	UsersIcon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { CommandPalette } from "#/components/CommandPalette";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import {
@@ -46,6 +65,7 @@ export const Route = createFileRoute("/org/$orgId/")({
 
 function OrgPage() {
 	const { orgId } = Route.useParams();
+	const navigate = useNavigate();
 
 	const {
 		data: teams,
@@ -65,6 +85,9 @@ function OrgPage() {
 		queryFn: () => listMembers({ data: { orgId } }),
 	});
 
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [createTeamOpen, setCreateTeamOpen] = useState(false);
+	const [inviteOpen, setInviteOpen] = useState(false);
 	const [teamName, setTeamName] = useState("");
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<"member" | "admin" | "owner">(
@@ -73,11 +96,23 @@ function OrgPage() {
 	const [inviteLink, setInviteLink] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+				e.preventDefault();
+				setPaletteOpen((v) => !v);
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, []);
+
 	const { mutate: handleCreateTeam, isPending: creatingTeam } = useMutation({
 		mutationFn: () => createTeam({ data: { orgId, name: teamName } }),
 		onSuccess: () => {
 			refetchTeams();
 			setTeamName("");
+			setCreateTeamOpen(false);
 		},
 	});
 
@@ -95,6 +130,18 @@ function OrgPage() {
 		},
 	});
 
+	const openCreateTeamDialog = () => {
+		setTeamName("");
+		setCreateTeamOpen(true);
+	};
+
+	const openInviteDialog = () => {
+		setInviteEmail("");
+		setInviteRole("member");
+		setInviteLink(null);
+		setInviteOpen(true);
+	};
+
 	return (
 		<main className="mx-auto max-w-2xl px-4 py-10">
 			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -107,12 +154,17 @@ function OrgPage() {
 				</span>
 			</div>
 
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 flex items-center gap-1">
 				<h1 className="text-2xl font-bold">Teams</h1>
-				<Button asChild variant="outline" size="sm">
-					<Link to="/org/$orgId/settings" params={{ orgId }}>
-						組織設定
-					</Link>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					aria-label="コマンドパレットを開く (⌘K)"
+					title="コマンドパレットを開く (⌘K)"
+					onClick={() => setPaletteOpen(true)}
+				>
+					<SquareChevronRightIcon />
 				</Button>
 			</div>
 
@@ -143,35 +195,11 @@ function OrgPage() {
 				)}
 			</ul>
 
-			<Card className="mb-8">
-				<CardHeader>
-					<CardTitle>Create Team</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="flex gap-2">
-						<Input
-							type="text"
-							placeholder="Team name"
-							value={teamName}
-							onChange={(e) => setTeamName(e.target.value)}
-							className="flex-1"
-						/>
-						<Button
-							type="button"
-							disabled={!teamName.trim() || creatingTeam}
-							onClick={() => handleCreateTeam()}
-						>
-							Create
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
-
 			<Card>
 				<CardHeader>
 					<CardTitle>Members</CardTitle>
 				</CardHeader>
-				<CardContent className="flex flex-col gap-4">
+				<CardContent>
 					<ul className="space-y-1 text-sm">
 						{membersPending
 							? SKELETON_ROWS.map((key) => (
@@ -189,82 +217,166 @@ function OrgPage() {
 									</li>
 								))}
 					</ul>
-
-					<div className="border-t border-border pt-4">
-						<p className="mb-3 text-sm font-medium">Invite Member</p>
-						<div className="flex flex-col gap-2">
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="invite-email">Email</Label>
-								<Input
-									id="invite-email"
-									type="email"
-									placeholder="colleague@example.com"
-									value={inviteEmail}
-									onChange={(e) => setInviteEmail(e.target.value)}
-								/>
-							</div>
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="invite-role">Role</Label>
-								<Select
-									value={inviteRole}
-									onValueChange={(v) =>
-										setInviteRole(v as "member" | "admin" | "owner")
-									}
-								>
-									<SelectTrigger id="invite-role">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="member">Member</SelectItem>
-										<SelectItem value="admin">Admin</SelectItem>
-										<SelectItem value="owner">Owner</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<Button
-								type="button"
-								disabled={!inviteEmail.trim() || inviting}
-								onClick={() => {
-									setInviteLink(null);
-									handleInvite();
-								}}
-							>
-								{inviting ? "Sending..." : "Send Invite"}
-							</Button>
-							{inviteLink && (
-								<div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm dark:border-green-800 dark:bg-green-950">
-									<p className="mb-1 font-medium text-green-700 dark:text-green-300">
-										Invitation created!
-									</p>
-									<p className="mb-2 text-muted-foreground">
-										Share this link with the invitee:
-									</p>
-									<div className="flex items-center gap-2">
-										<Input
-											readOnly
-											value={inviteLink}
-											className="flex-1 font-mono text-xs"
-											onFocus={(e) => e.currentTarget.select()}
-										/>
-										<Button
-											type="button"
-											size="sm"
-											variant="outline"
-											onClick={() => {
-												navigator.clipboard.writeText(inviteLink);
-												setCopied(true);
-												setTimeout(() => setCopied(false), 2000);
-											}}
-										>
-											{copied ? "Copied!" : "Copy"}
-										</Button>
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
 				</CardContent>
 			</Card>
+
+			<CommandPalette
+				open={paletteOpen}
+				onOpenChange={setPaletteOpen}
+				commands={[
+					{
+						label: "チームを作成",
+						keywords: ["create", "team", "チーム", "作成", "新規"],
+						icon: <UsersIcon />,
+						onSelect: openCreateTeamDialog,
+					},
+					{
+						label: "メンバーを招待",
+						keywords: ["invite", "member", "招待", "メンバー"],
+						icon: <UserPlusIcon />,
+						onSelect: openInviteDialog,
+					},
+					{
+						label: "組織設定を開く",
+						keywords: ["settings", "organization", "組織", "設定"],
+						icon: <SettingsIcon />,
+						onSelect: () =>
+							navigate({ to: "/org/$orgId/settings", params: { orgId } }),
+					},
+				]}
+			/>
+
+			<Dialog open={createTeamOpen} onOpenChange={setCreateTeamOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>チームを作成</DialogTitle>
+					</DialogHeader>
+
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="team-name">Team name</Label>
+						<Input
+							id="team-name"
+							type="text"
+							placeholder="Team name"
+							value={teamName}
+							onChange={(e) => setTeamName(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && teamName.trim()) {
+									handleCreateTeam();
+								}
+							}}
+							autoFocus
+						/>
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setCreateTeamOpen(false)}
+						>
+							キャンセル
+						</Button>
+						<Button
+							type="button"
+							disabled={!teamName.trim() || creatingTeam}
+							onClick={() => handleCreateTeam()}
+						>
+							{creatingTeam ? "作成中…" : "作成"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>メンバーを招待</DialogTitle>
+					</DialogHeader>
+
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="invite-email">Email</Label>
+							<Input
+								id="invite-email"
+								type="email"
+								placeholder="colleague@example.com"
+								value={inviteEmail}
+								onChange={(e) => setInviteEmail(e.target.value)}
+								autoFocus
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="invite-role">Role</Label>
+							<Select
+								value={inviteRole}
+								onValueChange={(v) =>
+									setInviteRole(v as "member" | "admin" | "owner")
+								}
+							>
+								<SelectTrigger id="invite-role">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="member">Member</SelectItem>
+									<SelectItem value="admin">Admin</SelectItem>
+									<SelectItem value="owner">Owner</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						{inviteLink && (
+							<div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm dark:border-green-800 dark:bg-green-950">
+								<p className="mb-1 font-medium text-green-700 dark:text-green-300">
+									Invitation created!
+								</p>
+								<p className="mb-2 text-muted-foreground">
+									Share this link with the invitee:
+								</p>
+								<div className="flex items-center gap-2">
+									<Input
+										readOnly
+										value={inviteLink}
+										className="flex-1 font-mono text-xs"
+										onFocus={(e) => e.currentTarget.select()}
+									/>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={() => {
+											navigator.clipboard.writeText(inviteLink);
+											setCopied(true);
+											setTimeout(() => setCopied(false), 2000);
+										}}
+									>
+										{copied ? "Copied!" : "Copy"}
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setInviteOpen(false)}
+						>
+							閉じる
+						</Button>
+						<Button
+							type="button"
+							disabled={!inviteEmail.trim() || inviting}
+							onClick={() => {
+								setInviteLink(null);
+								handleInvite();
+							}}
+						>
+							{inviting ? "Sending..." : "Send Invite"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</main>
 	);
 }
