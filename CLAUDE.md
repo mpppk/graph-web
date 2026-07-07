@@ -22,6 +22,10 @@
 * モバイル幅（393x852）。意図しないスクロールがないか（`scrollHeight === clientHeight`）も確認
 * ダークモード
 
+## MCPサーバー変更時の動作確認
+
+`src/lib/mcp/` や `src/routes/api/mcp.ts` を変更したら、`mcp-inspector-verify` skill を使い、MCP Inspector で OAuth 接続〜ツール実行（UI に関わる変更は App のライブ描画）まで実機確認する。結果は PR の Test Plan / 動作確認結果に記載する。
+
 ## React Flow (@xyflow/react)
 
 グラフキャンバスを触る前に `docs/react-flow-notes.md` を読むこと。新しく踏んだ落とし穴は同ファイルに追記する。
