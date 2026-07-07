@@ -5,7 +5,7 @@ description: graph-webのMCPサーバー（src/lib/mcp/ や src/routes/api/mcp.t
 
 # mcp-inspector-verify
 
-MCP サーバーの変更を、実際の MCP クライアント（MCP Inspector）から OAuth 接続して確認する。Playwright で自動化するとよい。
+MCP サーバーの変更を、実際の MCP クライアント（MCP Inspector）から OAuth 接続して確認する。ブラウザ操作は Playwright で行う（都度その場で操作すればよく、専用の検証スクリプトを作る必要はない）。
 
 ## 前提・起動
 
@@ -15,7 +15,7 @@ MCP サーバーの変更を、実際の MCP クライアント（MCP Inspector�
   - MCP Inspector: `DANGEROUSLY_OMIT_AUTH=true MCP_AUTO_OPEN_ENABLED=false node <inspector>/client/bin/start.js`（UI :6274 / proxy :6277）。npx で入れた実体は `~/.npm/_npx/*/node_modules/@modelcontextprotocol/inspector/client/bin/start.js`。cached bin 直起動が npx 経由より安定。
 - Playwright / Chromium は web 実行環境のグローバルを使う（`bunx playwright` か `/opt/pw-browsers/chromium-*/chrome-linux/chrome`）。`playwright install` は不要。
 
-## 手順（Playwright）
+## 手順（Playwright でブラウザ操作）
 
 1. **サインアップ**して dev サーバーの Cookie セッションを作る（App の `/embed` iframe はこの Cookie で認証される）。グラフを作成し、必要ならノード/エッジを `wrangler d1 execute DB --local` で投入。
 2. **OAuth 2.1 で Bearer トークンを取得**（同一ブラウザコンテキストで）:
@@ -23,8 +23,8 @@ MCP サーバーの変更を、実際の MCP クライアント（MCP Inspector�
    - DCR: `POST /api/auth/mcp/register`（`token_endpoint_auth_method: "none"`、`redirect_uris` を登録）。
    - authorize: `GET /api/auth/mcp/authorize`（PKCE `S256`）。ログイン済みなので consent を承認 → `redirect_uri?code=...`。
    - token: `POST /api/auth/mcp/token`（`grant_type=authorization_code` ＋ `code_verifier`）→ `access_token`。
-   - （任意）`POST /api/mcp` に `Authorization: Bearer <token>` で `tools/list` / `tools/call get_graph` を直叩きし、`ui://` リソース返却を先に確認しておくと切り分けが早い。
-3. **Inspector UI を駆動**（ブラウザは **`http://localhost:6274`** で開く。`127.0.0.1:6274` だと proxy が "Invalid origin" 403）:
+   - （任意）`POST /api/mcp` に `Authorization: Bearer <token>` で `tools/list` / `tools/call get_graph` を叩き、`ui://` リソース返却を先に確認しておくと切り分けが早い。
+3. **Inspector UI を操作**（ブラウザは **`http://localhost:6274`** で開く。`127.0.0.1:6274` だと proxy が "Invalid origin" 403）:
    - Transport=**Streamable HTTP**、URL=`http://localhost:3000/api/mcp`。
    - Authentication → Custom Headers に `Authorization` / 値 `Bearer <token>` を入れ**トグル ON** → Connect。
    - **Tools タブ**: `tools/list` に対象ツールが出ること、実行して `Tool Result: Success` を確認。
