@@ -1,6 +1,11 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	HeadContent,
+	Scripts,
+	useRouterState,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useState } from "react";
 import { CommandPaletteProvider } from "../components/graph/CommandPaletteContext";
@@ -81,6 +86,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		() =>
 			new QueryClient({ defaultOptions: { queries: { staleTime: 5_000 } } }),
 	);
+	// Embed routes render inside an MCP App iframe on the host; drop the global
+	// header so only the graph fills the frame. (Devtools are already stripped
+	// from production builds by @tanstack/devtools-vite.)
+	const isEmbed = useRouterState({
+		select: (s) => s.location.pathname.startsWith("/embed"),
+	});
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
@@ -104,10 +115,14 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<body className="font-sans antialiased [overflow-wrap:anywhere]">
 				<QueryClientProvider client={queryClient}>
 					<CommandPaletteProvider>
-						<div className="flex h-dvh flex-col overflow-hidden">
-							<Header />
-							<main className="flex-1 min-h-0 overflow-auto">{children}</main>
-						</div>
+						{isEmbed ? (
+							<div className="h-dvh overflow-hidden">{children}</div>
+						) : (
+							<div className="flex h-dvh flex-col overflow-hidden">
+								<Header />
+								<main className="flex-1 min-h-0 overflow-auto">{children}</main>
+							</div>
+						)}
 					</CommandPaletteProvider>
 					<TanStackDevtools
 						config={{
